@@ -1,16 +1,17 @@
 import sqlite3
-import json
+from typing import List, Optional, Dict, Any
 from datetime import datetime
-from typing import List, Dict, Optional, Tuple, Any
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ShopDatabase:
     """Enhanced database manager for the Discord shop bot"""
 
     def __init__(self, db_path: str = 'shop.db'):
         self.db_path = db_path
-        self.connection = sqlite3.connect(db_path, check_same_thread=False)
-        self.connection.row_factory = sqlite3.Row  # Enable column access by name
-        self.conn = self.connection  # Maintain backward compatibility
+        self.conn = sqlite3.connect(db_path, check_same_thread=False)
+        self.conn.row_factory = sqlite3.Row  # Enable column access by name
         self.create_tables()
 
     def create_tables(self):
@@ -32,28 +33,6 @@ class ShopDatabase:
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-
-        # Check if is_active column exists and add it if missing
-        cursor.execute("PRAGMA table_info(products)")
-        columns = [column[1] for column in cursor.fetchall()]
-        
-        if 'is_active' not in columns:
-            cursor.execute('ALTER TABLE products ADD COLUMN is_active BOOLEAN DEFAULT 1')
-        
-        if 'created_at' not in columns:
-            cursor.execute('ALTER TABLE products ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
-            
-        if 'updated_at' not in columns:
-            cursor.execute('ALTER TABLE products ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
-            
-        if 'category' not in columns:
-            cursor.execute('ALTER TABLE products ADD COLUMN category TEXT DEFAULT "general"')
-            
-        if 'image_url' not in columns:
-            cursor.execute('ALTER TABLE products ADD COLUMN image_url TEXT')
-            
-        if 'description' not in columns:
-            cursor.execute('ALTER TABLE products ADD COLUMN description TEXT')
 
         # Enhanced carts table
         cursor.execute('''
@@ -105,268 +84,380 @@ class ShopDatabase:
                 total_orders INTEGER DEFAULT 0,
                 first_purchase TIMESTAMP,
                 last_purchase TIMESTAMP,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
 
-        # Create indexes for better performance
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_products_active ON products (is_active)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_carts_user ON carts (user_id)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_orders_user ON orders (user_id)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status)')
+        self.conn.commit()
+        logger.info("Database tables created successfully")
 
-        self.connection.commit()
+    def add_product(self, name: str, description: str, price: float, stock: int, 
+                   image_url: str = None, category: str = 'general') -> Optional[int]:
+        """Add a new product"""
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute('''
+                INSERT INTO products (name, description, price, stock, image_url, category)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (name, description, price, stock, image_url, category))
 
-    # Product management methods
-    def add_product(self, name: str, description: str, price: float, stock: int, image_url: str = None, category: str = 'general') -> int:
-        """Add a new product to the database"""
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            INSERT INTO products (name, description, price, stock, image_url, category, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        ''', (name, description, price, stock, image_url, category))
-
-        product_id = cursor.lastrowid
-        self.connection.commit()
-        cursor.close()
-        return product_id
+            self.conn.commit()
+            product_id = cursor.lastrowid
+            logger.info(f"Added product: {name} (ID: {product_id})")
+            return product_id
+        except sqlite3.Error as e:
+            logger.error(f"Error adding product: {e}")
+            return None
 
     def get_product(self, product_id: int) -> Optional[sqlite3.Row]:
         """Get a single product by ID"""
-        cursor = self.connection.cursor()
-        cursor.execute('SELECT * FROM products WHERE id = ? AND is_active = 1', (product_id,))
+        cursor = self.conn.cursor()
+        cursor.execute('SELECT * FROM products WHERE id = ?', (product_id,))
         return cursor.fetchone()
 
-    def get_all_products(self, category: str = None) -> List[sqlite3.Row]:
-        """Get all active products, optionally filtered by category"""
-        cursor = self.connection.cursor()
-        if category:
-            cursor.execute('SELECT * FROM products WHERE is_active = 1 AND category = ? ORDER BY name', (category,))
-        else:
-            cursor.execute('SELECT * FROM products WHERE is_active = 1 ORDER BY name')
-        return cursor.fetchall()
+    def get_all_products(self, active_only: bool = False) -> List[sqlite3.Row]:
+        """Get all products from database"""
+        try:
+            cursor = self.conn.cursor()
+            if active_only:
+                cursor.execute("SELECT * FROM products WHERE is_active = 1 ORDER BY created_at DESC")
+            else:
+                cursor.execute("SELECT * FROM products ORDER BY created_at DESC")
+
+            columns = [description[0] for description in cursor.description]
+            products = []
+
+            for row in cursor.fetchall():
+                product = dict(zip(columns, row))
+                products.append(product)
+
+            return products
+
+        except sqlite3.Error as e:
+            logger.error(f"Database error getting products: {e}")
+            return []
+
+    def get_products_by_category(self, category, active_only=True):
+        """Get products by category"""
+        try:
+            cursor = self.conn.cursor()
+            if active_only:
+                cursor.execute("SELECT * FROM products WHERE category = ? AND is_active = 1 ORDER BY created_at DESC", (category,))
+            else:
+                cursor.execute("SELECT * FROM products WHERE category = ? ORDER BY created_at DESC", (category,))
+
+            columns = [description[0] for description in cursor.description]
+            products = []
+
+            for row in cursor.fetchall():
+                product = dict(zip(columns, row))
+                products.append(product)
+
+            return products
+
+        except sqlite3.Error as e:
+            logger.error(f"Database error getting products by category: {e}")
+            return []
+
+    def update_product_stock(self, product_id: int, new_stock: int) -> bool:
+        """Update product stock"""
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute('''
+                UPDATE products 
+                SET stock = ?, updated_at = CURRENT_TIMESTAMP 
+                WHERE id = ?
+            ''', (new_stock, product_id))
+
+            self.conn.commit()
+            if cursor.rowcount > 0:
+                logger.info(f"Updated stock for product {product_id} to {new_stock}")
+                return True
+            return False
+        except sqlite3.Error as e:
+            logger.error(f"Error updating stock: {e}")
+            return False
 
     def update_product(self, product_id: int, **kwargs) -> bool:
         """Update product fields"""
-        if not kwargs:
+        try:
+            # Build dynamic update query
+            set_clauses = []
+            values = []
+
+            for field, value in kwargs.items():
+                if field in ['name', 'description', 'price', 'stock', 'image_url', 'category', 'is_active']:
+                    set_clauses.append(f"{field} = ?")
+                    values.append(value)
+
+            if not set_clauses:
+                return False
+
+            set_clauses.append("updated_at = CURRENT_TIMESTAMP")
+            values.append(product_id)
+
+            cursor = self.conn.cursor()
+            query = f"UPDATE products SET {', '.join(set_clauses)} WHERE id = ?"
+            cursor.execute(query, values)
+
+            self.conn.commit()
+            return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            logger.error(f"Error updating product: {e}")
             return False
 
-        # Add updated_at timestamp
-        kwargs['updated_at'] = datetime.utcnow().isoformat()
+    def delete_product(self, product_id: int) -> bool:
+        """Delete a product"""
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute('DELETE FROM products WHERE id = ?', (product_id,))
+            self.conn.commit()
+            return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            logger.error(f"Error deleting product: {e}")
+            return False
 
-        fields = ', '.join(f"{key} = ?" for key in kwargs.keys())
-        values = list(kwargs.values()) + [product_id]
-
-        cursor = self.connection.cursor()
-        cursor.execute(f'UPDATE products SET {fields} WHERE id = ?', values)
-        self.connection.commit()
-        return cursor.rowcount > 0
-
-    def update_stock(self, product_id: int, new_stock: int) -> bool:
-        """Update product stock level"""
-        return self.update_product(product_id, stock=new_stock)
-
-    def deactivate_product(self, product_id: int) -> bool:
-        """Soft delete a product (mark as inactive)"""
-        return self.update_product(product_id, is_active=0)
-
-    # Cart management methods
     def add_to_cart(self, user_id: int, product_id: int, quantity: int = 1) -> bool:
         """Add item to user's cart"""
-        # Check if product exists and has stock
-        product = self.get_product(product_id)
-        if not product or product['stock'] < quantity:
+        try:
+            cursor = self.conn.cursor()
+
+            # Check if product exists and has stock
+            cursor.execute('SELECT stock FROM products WHERE id = ? AND is_active = 1', (product_id,))
+            product = cursor.fetchone()
+
+            if not product or product['stock'] < quantity:
+                return False
+
+            # Check if item already in cart
+            cursor.execute('SELECT quantity FROM carts WHERE user_id = ? AND product_id = ?', 
+                          (user_id, product_id))
+            existing = cursor.fetchone()
+
+            if existing:
+                # Update quantity
+                new_quantity = existing['quantity'] + quantity
+                if new_quantity > product['stock']:
+                    return False
+
+                cursor.execute('''
+                    UPDATE carts SET quantity = ?, added_at = CURRENT_TIMESTAMP 
+                    WHERE user_id = ? AND product_id = ?
+                ''', (new_quantity, user_id, product_id))
+            else:
+                # Add new item
+                cursor.execute('''
+                    INSERT INTO carts (user_id, product_id, quantity)
+                    VALUES (?, ?, ?)
+                ''', (user_id, product_id, quantity))
+
+            self.conn.commit()
+            logger.info(f"Added {quantity} of product {product_id} to cart for user {user_id}")
+            return True
+        except sqlite3.Error as e:
+            logger.error(f"Error adding to cart: {e}")
             return False
 
-        cursor = self.connection.cursor()
+    def get_cart_items(self, user_id: int) -> List[Dict[str, Any]]:
+        """Get all items in user's cart with product details"""
+        cursor = self.conn.cursor()
         cursor.execute('''
-            INSERT OR REPLACE INTO carts (user_id, product_id, quantity, added_at)
-            VALUES (?, ?, 
-                COALESCE((SELECT quantity FROM carts WHERE user_id = ? AND product_id = ?), 0) + ?,
-                CURRENT_TIMESTAMP)
-        ''', (user_id, product_id, user_id, product_id, quantity))
-        self.connection.commit()
-        return True
+            SELECT 
+                p.id, p.name, p.description, p.price, p.stock, p.image_url,
+                c.quantity,
+                (p.price * c.quantity) as total_price
+            FROM carts c
+            JOIN products p ON c.product_id = p.id
+            WHERE c.user_id = ? AND p.is_active = 1
+            ORDER BY c.added_at DESC
+        ''', (user_id,))
+
+        return [dict(row) for row in cursor.fetchall()]
 
     def remove_from_cart(self, user_id: int, product_id: int) -> bool:
-        """Remove item from user's cart"""
-        cursor = self.connection.cursor()
-        cursor.execute('DELETE FROM carts WHERE user_id = ? AND product_id = ?', (user_id, product_id))
-        self.connection.commit()
-        return cursor.rowcount > 0
-
-    def get_cart(self, user_id: int) -> List[sqlite3.Row]:
-        """Get user's cart with product details"""
-        cursor = self.connection.cursor()
-        cursor.execute('''
-            SELECT p.id, p.name, p.price, p.image_url, c.quantity, p.stock,
-                   (p.price * c.quantity) as total_price
-            FROM carts c
-            JOIN products p ON c.product_id = p.id
-            WHERE c.user_id = ? AND p.is_active = 1
-            ORDER BY c.added_at
-        ''', (user_id,))
-        return cursor.fetchall()
-
-    def get_cart_total(self, user_id: int) -> float:
-        """Get total value of user's cart"""
-        cursor = self.connection.cursor()
-        cursor.execute('''
-            SELECT SUM(p.price * c.quantity) as total
-            FROM carts c
-            JOIN products p ON c.product_id = p.id
-            WHERE c.user_id = ? AND p.is_active = 1
-        ''', (user_id,))
-        result = cursor.fetchone()
-        return result['total'] or 0.0
+        """Remove item from cart"""
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute('DELETE FROM carts WHERE user_id = ? AND product_id = ?', 
+                          (user_id, product_id))
+            self.conn.commit()
+            return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            logger.error(f"Error removing from cart: {e}")
+            return False
 
     def clear_cart(self, user_id: int) -> bool:
         """Clear user's cart"""
-        cursor = self.connection.cursor()
-        cursor.execute('DELETE FROM carts WHERE user_id = ?', (user_id,))
-        self.connection.commit()
-        return cursor.rowcount > 0
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute('DELETE FROM carts WHERE user_id = ?', (user_id,))
+            self.conn.commit()
+            logger.info(f"Cleared cart for user {user_id}")
+            return True
+        except sqlite3.Error as e:
+            logger.error(f"Error clearing cart: {e}")
+            return False
 
-    # Order management methods
-    def create_order(self, user_id: int, username: str) -> Optional[int]:
-        """Create order from user's cart"""
-        cart_items = self.get_cart(user_id)
-        if not cart_items:
-            return None
+    def create_order(self, user_id: int, username: str, cart_items: List[Dict], total_amount: float) -> Optional[int]:
+        """Create order from cart items"""
+        try:
+            cursor = self.conn.cursor()
 
-        # Verify stock availability
-        for item in cart_items:
-            if item['stock'] < item['quantity']:
-                return None
-
-        total_amount = sum(item['total_price'] for item in cart_items)
-
-        cursor = self.connection.cursor()
-
-        # Create order
-        cursor.execute('''
-            INSERT INTO orders (user_id, username, total_amount)
-            VALUES (?, ?, ?)
-        ''', (user_id, username, total_amount))
-        order_id = cursor.lastrowid
-
-        # Add order items and update stock
-        for item in cart_items:
+            # Create order
             cursor.execute('''
-                INSERT INTO order_items (order_id, product_id, product_name, quantity, unit_price, total_price)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (order_id, item['id'], item['name'], item['quantity'], 
-                  item['price'], item['total_price']))
+                INSERT INTO orders (user_id, username, total_amount, status)
+                VALUES (?, ?, ?, ?)
+            ''', (user_id, username, total_amount, 'completed'))
 
-            # Update product stock
-            new_stock = item['stock'] - item['quantity']
-            cursor.execute('UPDATE products SET stock = ? WHERE id = ?', (new_stock, item['id']))
+            order_id = cursor.lastrowid
 
-        # Update user stats
-        self.update_user_stats(user_id, username, total_amount)
+            # Add order items and update stock
+            for item in cart_items:
+                cursor.execute('''
+                    INSERT INTO order_items (order_id, product_id, product_name, quantity, unit_price, total_price)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (order_id, item['id'], item['name'], item['quantity'], 
+                      item['price'], item['total_price']))
 
-        # Clear cart
-        cursor.execute('DELETE FROM carts WHERE user_id = ?', (user_id,))
+                # Update product stock
+                new_stock = item['stock'] - item['quantity']
+                cursor.execute('UPDATE products SET stock = ? WHERE id = ?', (new_stock, item['id']))
 
-        self.connection.commit()
-        return order_id
+            # Update user stats
+            self.update_user_stats(user_id, username, total_amount)
+
+            # Clear cart
+            cursor.execute('DELETE FROM carts WHERE user_id = ?', (user_id,))
+
+            self.conn.commit()
+            logger.info(f"Created order {order_id} for user {user_id}")
+            return order_id
+        except sqlite3.Error as e:
+            logger.error(f"Error creating order: {e}")
+            self.conn.rollback()
+            return None
 
     def get_order(self, order_id: int) -> Optional[sqlite3.Row]:
         """Get order details"""
-        cursor = self.connection.cursor()
+        cursor = self.conn.cursor()
         cursor.execute('SELECT * FROM orders WHERE id = ?', (order_id,))
         return cursor.fetchone()
 
     def get_order_items(self, order_id: int) -> List[sqlite3.Row]:
         """Get items in an order"""
-        cursor = self.connection.cursor()
+        cursor = self.conn.cursor()
         cursor.execute('SELECT * FROM order_items WHERE order_id = ?', (order_id,))
         return cursor.fetchall()
 
     def update_order_status(self, order_id: int, status: str, notes: str = None) -> bool:
         """Update order status"""
-        cursor = self.connection.cursor()
-        cursor.execute('''
-            UPDATE orders 
-            SET status = ?, notes = ?, updated_at = CURRENT_TIMESTAMP 
-            WHERE id = ?
-        ''', (status, notes, order_id))
-        self.connection.commit()
-        return cursor.rowcount > 0
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute('''
+                UPDATE orders 
+                SET status = ?, notes = ?, updated_at = CURRENT_TIMESTAMP 
+                WHERE id = ?
+            ''', (status, notes, order_id))
+
+            self.conn.commit()
+            return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            logger.error(f"Error updating order status: {e}")
+            return False
 
     def get_user_orders(self, user_id: int) -> List[sqlite3.Row]:
         """Get all orders for a user"""
-        cursor = self.connection.cursor()
-        cursor.execute('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC', (user_id,))
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT * FROM orders 
+            WHERE user_id = ? 
+            ORDER BY created_at DESC
+        ''', (user_id,))
         return cursor.fetchall()
 
-    # User statistics methods
-    def update_user_stats(self, user_id: int, username: str, amount: float):
-        """Update user purchase statistics"""
-        cursor = self.connection.cursor()
-        cursor.execute('''
-            INSERT OR REPLACE INTO user_stats 
-            (user_id, username, total_spent, total_orders, first_purchase, last_purchase)
-            VALUES (?, ?, 
-                COALESCE((SELECT total_spent FROM user_stats WHERE user_id = ?), 0) + ?,
-                COALESCE((SELECT total_orders FROM user_stats WHERE user_id = ?), 0) + 1,
-                COALESCE((SELECT first_purchase FROM user_stats WHERE user_id = ?), CURRENT_TIMESTAMP),
-                CURRENT_TIMESTAMP)
-        ''', (user_id, username, user_id, amount, user_id, user_id))
-        self.connection.commit()
+    def update_user_stats(self, user_id: int, username: str, amount: float) -> None:
+        """Update or create user statistics"""
+        try:
+            cursor = self.conn.cursor()
+
+            # Check if user stats exist
+            cursor.execute('SELECT * FROM user_stats WHERE user_id = ?', (user_id,))
+            existing = cursor.fetchone()
+
+            if existing:
+                # Update existing stats
+                cursor.execute('''
+                    UPDATE user_stats 
+                    SET username = ?, 
+                        total_spent = total_spent + ?, 
+                        total_orders = total_orders + 1,
+                        last_purchase = CURRENT_TIMESTAMP,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = ?
+                ''', (username, amount, user_id))
+            else:
+                # Create new stats
+                cursor.execute('''
+                    INSERT INTO user_stats (user_id, username, total_spent, total_orders, first_purchase, last_purchase)
+                    VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ''', (user_id, username, amount))
+
+            self.conn.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Error updating user stats: {e}")
 
     def get_user_stats(self, user_id: int) -> Optional[sqlite3.Row]:
-        """Get user purchase statistics"""
-        cursor = self.connection.cursor()
+        """Get user statistics"""
+        cursor = self.conn.cursor()
         cursor.execute('SELECT * FROM user_stats WHERE user_id = ?', (user_id,))
         return cursor.fetchone()
 
-    # Admin/Analytics methods
-    def get_sales_summary(self) -> Dict[str, Any]:
-        """Get sales analytics summary"""
-        cursor = self.connection.cursor()
+    def get_sales_analytics(self) -> Dict[str, Any]:
+        """Get sales analytics"""
+        cursor = self.conn.cursor()
 
         # Total sales
-        cursor.execute('SELECT SUM(total_amount) as total_sales, COUNT(*) as total_orders FROM orders')
-        sales_data = cursor.fetchone()
+        cursor.execute('SELECT COUNT(*), SUM(total_amount) FROM orders WHERE status = "completed"')
+        total_orders, total_revenue = cursor.fetchone()
 
         # Top products
         cursor.execute('''
             SELECT product_name, SUM(quantity) as total_sold, SUM(total_price) as revenue
-            FROM order_items 
-            GROUP BY product_name 
-            ORDER BY total_sold DESC 
+            FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            WHERE o.status = "completed"
+            GROUP BY product_name
+            ORDER BY total_sold DESC
             LIMIT 5
         ''')
         top_products = cursor.fetchall()
 
         # Recent orders
-        cursor.execute('SELECT * FROM orders ORDER BY created_at DESC LIMIT 10')
+        cursor.execute('''
+            SELECT id, username, total_amount, created_at
+            FROM orders
+            WHERE status = "completed"
+            ORDER BY created_at DESC
+            LIMIT 10
+        ''')
         recent_orders = cursor.fetchall()
 
         return {
-            'total_sales': sales_data['total_sales'] or 0,
-            'total_orders': sales_data['total_orders'] or 0,
-            'top_products': [dict(p) for p in top_products],
-            'recent_orders': [dict(o) for o in recent_orders]
+            'total_orders': total_orders or 0,
+            'total_revenue': total_revenue or 0.0,
+            'top_products': [dict(row) for row in top_products],
+            'recent_orders': [dict(row) for row in recent_orders]
         }
-
-    def backup_database(self, backup_path: str = None) -> str:
-        """Create a backup of the database"""
-        if not backup_path:
-            backup_path = f"shop_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
-
-        backup_conn = sqlite3.connect(backup_path)
-        self.connection.backup(backup_conn)
-        backup_conn.close()
-
-        return backup_path
 
     def close(self):
         """Close database connection"""
-        if self.connection:
-            self.connection.close()
+        if self.conn:
+            self.conn.close()
+            logger.info("Database connection closed")
 
-    def __del__(self):
-        """Cleanup when object is destroyed"""
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
