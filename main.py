@@ -741,12 +741,13 @@ class STKShopView(discord.ui.View):
 # Slash Commands
 @bot.tree.command(name="shop", description="Browse the STK Shop")
 async def shop(interaction: discord.Interaction):
-    """Browse the STK Shop"""
+    """Browse the STK Shop - Available to everyone"""
     try:
         view = STKShopView(interaction.user.id)
         embed = view.create_shop_embed()
 
-        await interaction.response.send_message(embed=embed, view=view)
+        # Make the shop response public (not ephemeral) so everyone can see it
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=False)
 
     except Exception as e:
         logger.error(f"Error in shop command: {e}")
@@ -765,9 +766,15 @@ async def clear_messages(interaction: discord.Interaction, amount: int = 10):
         elif amount < 1:
             amount = 1
 
-        # Check if user has manage messages permission
-        if not interaction.user.guild_permissions.manage_messages:
-            await interaction.response.send_message("❌ You need 'Manage Messages' permission to use this command.", ephemeral=True)
+        # Check if user has manage messages permission or admin role
+        has_permission = False
+        if interaction.user.guild_permissions.manage_messages:
+            has_permission = True
+        elif BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
+            has_permission = True
+        
+        if not has_permission:
+            await interaction.response.send_message("❌ You need 'Manage Messages' permission or Admin role to use this command.", ephemeral=True)
             return
 
         await interaction.response.send_message(f"🧹 Clearing up to {amount} bot messages...", ephemeral=True)

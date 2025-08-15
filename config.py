@@ -34,6 +34,7 @@ class BotConfig:
     @classmethod
     def load_from_env(cls):
         """Load configuration from environment variables"""
+        # Admin role used for restricted commands - shop remains universally accessible
         cls.ADMIN_ROLE_ID = cls._get_int_env('ADMIN_ROLE_ID')
         cls.SHOP_CHANNEL_ID = cls._get_int_env('SHOP_CHANNEL_ID')
         cls.TICKET_CHANNEL_ID = cls._get_int_env('TICKET_CHANNEL_ID')
