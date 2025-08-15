@@ -274,7 +274,7 @@ class WeaponShopView(discord.ui.View):
         # Show pricing info
         embed.add_field(
             name="💰 PACKAGE PRICING",
-            value="🔒 **FULL SAFE:** $3.00\n👜 **FULL BAG:** $2.00\n🚛 **FULL TRUNK:** $1.00",
+            value="🔒 **FULL SAFE:** $3.00\n👜 **FULL BAG:** $2.00\n 🚛 **FULL TRUNK:** $1.00",
             inline=True
         )
 
@@ -312,11 +312,8 @@ class WeaponShopView(discord.ui.View):
 
     @discord.ui.button(label='◀️ BACK TO SHOP', style=discord.ButtonStyle.secondary, row=1)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your shop!", ephemeral=True)
-            return
-
-        view = STKShopView(interaction.user.id)
+        # Allow any user to navigate back
+        view = PersistentSTKShopView()
         embed = view.create_shop_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
@@ -346,7 +343,7 @@ class MoneyShopView(discord.ui.View):
 
         embed.add_field(
             name="💵 UNLIMITED CASH PACKAGES",
-            value="💰 **990K Cash** - $1.00\n🏦 **990K Bank Extension** - $1.00\n💳 **1.6M (More Wallet Gamepass)** - $2.00",
+            value="💰 **990K Cash** - $1.00\n 🏦 **990K Bank Extension** - $1.00\n💳 **1.6M (More Wallet Gamepass)** - $2.00",
             inline=False
         )
 
@@ -421,11 +418,7 @@ class MoneyShopView(discord.ui.View):
 
     @discord.ui.button(label='◀️ BACK TO SHOP', style=discord.ButtonStyle.secondary, row=2)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your shop!", ephemeral=True)
-            return
-
-        view = STKShopView(interaction.user.id)
+        view = PersistentSTKShopView()
         embed = view.create_shop_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
@@ -511,11 +504,7 @@ class OtherShopView(discord.ui.View):
 
     @discord.ui.button(label='◀️ BACK TO SHOP', style=discord.ButtonStyle.secondary, row=2)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your shop!", ephemeral=True)
-            return
-
-        view = STKShopView(interaction.user.id)
+        view = PersistentSTKShopView()
         embed = view.create_shop_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
@@ -564,11 +553,7 @@ class InfoView(discord.ui.View):
 
     @discord.ui.button(label='◀️ BACK TO SHOP', style=discord.ButtonStyle.secondary, row=1)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your shop!", ephemeral=True)
-            return
-
-        view = STKShopView(interaction.user.id)
+        view = PersistentSTKShopView()
         embed = view.create_shop_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
@@ -664,7 +649,7 @@ class CartView(discord.ui.View):
             ticket_channel = await create_purchase_ticket(interaction, cart)
             if ticket_channel:
                 await interaction.response.send_message(f"✅ **Purchase ticket created!**\n\nYour order ticket: {ticket_channel.mention}\n\nZpofe and Drow have been notified and will assist you shortly!", ephemeral=True)
-                
+
                 # Clear cart after successful ticket creation
                 bot.user_carts[self.user_id] = {"weapons": set(), "money": None, "watches": set(), "hub": None}
             else:
@@ -685,11 +670,7 @@ class CartView(discord.ui.View):
 
     @discord.ui.button(label='◀️ BACK TO SHOP', style=discord.ButtonStyle.secondary, row=1)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your cart!", ephemeral=True)
-            return
-
-        view = STKShopView(interaction.user.id)
+        view = PersistentSTKShopView()
         embed = view.create_shop_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
@@ -783,6 +764,77 @@ class STKShopView(discord.ui.View):
         embed = view.create_cart_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
+# New class for persistent shop view
+class PersistentSTKShopView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None) # No timeout for persistent views
+
+    def create_shop_embed(self):
+        embed = discord.Embed(
+            title="🔥 STK SHOP",
+            description="**WELCOME TO STK SHOP**\n*Your trusted street suppliers - Zpofe & Drow*\n\nChoose your category below:",
+            color=0x8B0000  # Dark red for STK branding
+        )
+
+        embed.add_field(
+            name="🔫 STK WEAPONS",
+            value="**Fullys, Switches, Buttons, Binarys**\n*Premium package deals available*",
+            inline=True
+        )
+
+        embed.add_field(
+            name="💰 STK CASH",
+            value="**Unlimited Cash Available**\n*Fast delivery guaranteed*",
+            inline=True
+        )
+
+        embed.add_field(
+            name="📦 OTHER",
+            value="**Watches, Scripts, Ext**\n*Premium accessories & tools*",
+            inline=True
+        )
+
+        embed.add_field(
+            name="🎮 SELLER CARDS",
+            value="🔥 **Zpofe** - Services of all types\n💎 **Drow** - Services for THA BRONX 3",
+            inline=False
+        )
+
+        embed.set_footer(text="STK Services • THA BRONX 3 • Premium Quality")
+        return embed
+
+    # These button callbacks will redirect to the appropriate view for any user
+    @discord.ui.button(label='🔫 WEAPONS', style=discord.ButtonStyle.danger, row=1)
+    async def weapons_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = WeaponShopView(interaction.user.id) # Pass the current user's ID
+        embed = view.create_weapon_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    @discord.ui.button(label='💰 MONEY', style=discord.ButtonStyle.success, row=1)
+    async def money_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = MoneyShopView(interaction.user.id) # Pass the current user's ID
+        embed = view.create_money_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    @discord.ui.button(label='📦 OTHER', style=discord.ButtonStyle.secondary, row=1)
+    async def other_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = OtherShopView(interaction.user.id) # Pass the current user's ID
+        embed = view.create_other_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    @discord.ui.button(label='ℹ️ INFO', style=discord.ButtonStyle.primary, row=2)
+    async def info_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = InfoView(interaction.user.id) # Pass the current user's ID
+        embed = view.create_info_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    @discord.ui.button(label='🛒 CART', style=discord.ButtonStyle.primary, row=2)
+    async def cart_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = CartView(interaction.user.id) # Pass the current user's ID
+        embed = view.create_cart_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+
 async def create_purchase_ticket(interaction: discord.Interaction, cart):
     """Create a ticket channel for purchase processing"""
     guild = interaction.guild
@@ -800,14 +852,14 @@ async def create_purchase_ticket(interaction: discord.Interaction, cart):
 
     # Create ticket channel
     ticket_name = f"ticket-{interaction.user.name}-{datetime.datetime.now().strftime('%m%d-%H%M')}"
-    
+
     # Set permissions
     overwrites = {
         guild.default_role: discord.PermissionOverwrite(read_messages=False),
         interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
         guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
     }
-    
+
     # Add admin role permissions if configured
     if BotConfig.ADMIN_ROLE_ID:
         admin_role = guild.get_role(BotConfig.ADMIN_ROLE_ID)
@@ -821,23 +873,23 @@ async def create_purchase_ticket(interaction: discord.Interaction, cart):
             overwrites=overwrites,
             topic=f"Purchase ticket for {interaction.user.display_name}"
         )
-        
+
         # Send ticket embed
         await send_ticket_embed(ticket_channel, interaction.user, cart)
-        
+
         return ticket_channel
-        
+
     except discord.Forbidden:
         logger.error("No permission to create ticket channel")
         return None
 
 async def send_ticket_embed(channel, user, cart):
     """Send the purchase ticket embed with payment information"""
-    
+
     # Calculate total and create items list
     total = 0
     items_list = []
-    
+
     # Process cart items
     if cart["weapons"]:
         items_list.append(f"🔫 **WEAPONS** ({len(cart['weapons'])})")
@@ -867,43 +919,43 @@ async def send_ticket_embed(channel, user, cart):
         color=0x00ff00,
         timestamp=datetime.datetime.utcnow()
     )
-    
+
     embed.add_field(
         name="👤 Customer",
         value=f"{user.mention}\n`{user.id}`",
         inline=True
     )
-    
+
     embed.add_field(
         name="💰 Estimated Total",
         value=f"${total:.2f}" if total > 0 else "TBD",
         inline=True
     )
-    
+
     embed.add_field(
         name="⏰ Order Time",
         value=f"<t:{int(datetime.datetime.utcnow().timestamp())}:F>",
         inline=True
     )
-    
+
     embed.add_field(
         name="🛍️ Order Details",
         value="\n".join(items_list) if items_list else "No items",
         inline=False
     )
-    
+
     embed.set_thumbnail(url=user.display_avatar.url)
     embed.set_footer(text="STK Services • Professional Service", icon_url=channel.guild.me.display_avatar.url)
-    
+
     await channel.send(embed=embed)
-    
+
     # Send payment embed
     payment_embed = discord.Embed(
         title="💳 Payment Information",
         description="**Choose your payment method below:**",
         color=0x00ff00
     )
-    
+
     # Zpofe's payment info
     if PAYMENT_METHODS["zpofe"]["cashapp"]:
         payment_embed.add_field(
@@ -911,7 +963,7 @@ async def send_ticket_embed(channel, user, cart):
             value=f"[Click here to pay Zpofe]({PAYMENT_METHODS['zpofe']['cashapp']})\n`{PAYMENT_METHODS['zpofe']['cashapp']}`",
             inline=False
         )
-    
+
     # Drow's payment info
     if PAYMENT_METHODS["drow"]["cashapp"]:
         payment_embed.add_field(
@@ -925,39 +977,39 @@ async def send_ticket_embed(channel, user, cart):
             value="*Payment method not set*",
             inline=False
         )
-    
+
     payment_embed.add_field(
         name="📱 Instructions",
         value="1️⃣ Choose your preferred seller\n2️⃣ Send payment using the link above\n3️⃣ Send a screenshot of payment confirmation\n4️⃣ Wait for your items to be delivered!",
         inline=False
     )
-    
+
     payment_embed.set_footer(text="STK Services • Secure Payment Processing")
-    
+
     # Add QR code image if available for Zpofe
     if PAYMENT_METHODS["zpofe"]["qr_code"]:
         payment_embed.set_image(url=PAYMENT_METHODS["zpofe"]["qr_code"])
-    
+
     await channel.send(embed=payment_embed)
-    
+
     # Ping sellers
     ping_message = "🔔 **New Purchase Alert!**\n\n"
-    
+
     # Ping Zpofe (you) - replace with your user ID
     zpofe_id = 1399949855799119952  # Replace with Zpofe's actual user ID
     ping_message += f"🔥 <@{zpofe_id}> (Zpofe)\n"
-    
+
     # Ping Drow if admin role is set, or replace with Drow's user ID
     if BotConfig.ADMIN_ROLE_ID:
         ping_message += f"💎 <@&{BotConfig.ADMIN_ROLE_ID}> (Drow)"
     else:
         drow_id = 123456789  # Replace with Drow's actual user ID when available
         ping_message += f"💎 <@{drow_id}> (Drow)"
-    
+
     ping_message += "\n\n**A customer is ready to purchase! Please assist them promptly.**"
-    
+
     await channel.send(ping_message)
-    
+
     # Add ticket management buttons
     view = TicketManagementView()
     management_embed = discord.Embed(
@@ -975,7 +1027,7 @@ async def send_ticket_embed(channel, user, cart):
         value="Mark the order as completed",
         inline=True
     )
-    
+
     await channel.send(embed=management_embed, view=view)
 
 # Slash Commands
@@ -983,7 +1035,7 @@ async def send_ticket_embed(channel, user, cart):
 async def shop(interaction: discord.Interaction):
     """Browse the STK Shop - Available to everyone"""
     try:
-        view = STKShopView(interaction.user.id)
+        view = PersistentSTKShopView() # Use the persistent view
         embed = view.create_shop_embed()
 
         # Make the shop response public (not ephemeral) so everyone can see it
@@ -1012,7 +1064,7 @@ async def clear_messages(interaction: discord.Interaction, amount: int = 10):
             has_permission = True
         elif BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
             has_permission = True
-        
+
         if not has_permission:
             await interaction.response.send_message("❌ You need 'Manage Messages' permission or Admin role to use this command.", ephemeral=True)
             return
@@ -1024,7 +1076,7 @@ async def clear_messages(interaction: discord.Interaction, amount: int = 10):
         async for message in interaction.channel.history(limit=500):  # Check last 500 messages
             if messages_deleted >= amount:
                 break
-            
+
             # Only delete messages from this bot
             if message.author == bot.user:
                 try:
@@ -1103,7 +1155,7 @@ async def set_payment(interaction: discord.Interaction, cashapp_link: str, qr_co
             has_permission = True
         elif interaction.user.guild_permissions.administrator:
             has_permission = True
-        
+
         if not has_permission:
             await interaction.response.send_message("❌ Only Drow can use this command.", ephemeral=True)
             return
@@ -1127,9 +1179,9 @@ async def set_payment(interaction: discord.Interaction, cashapp_link: str, qr_co
         if qr_code_url:
             embed.add_field(name="📱 QR Code", value="QR code image updated", inline=False)
             embed.set_image(url=qr_code_url)
-        
+
         embed.set_footer(text="Payment method active for all new tickets")
-        
+
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     except Exception as e:
@@ -1149,7 +1201,7 @@ class TicketManagementView(discord.ui.View):
             has_permission = True
         elif interaction.user.guild_permissions.manage_channels:
             has_permission = True
-        
+
         if not has_permission:
             await interaction.response.send_message("❌ Only admins can close tickets.", ephemeral=True)
             return
@@ -1161,9 +1213,9 @@ class TicketManagementView(discord.ui.View):
             timestamp=datetime.datetime.utcnow()
         )
         embed.set_footer(text="STK Services • Ticket System")
-        
+
         await interaction.response.send_message(embed=embed)
-        
+
         # Wait a moment then delete the channel
         await asyncio.sleep(5)
         try:
@@ -1179,7 +1231,7 @@ class TicketManagementView(discord.ui.View):
             has_permission = True
         elif interaction.user.guild_permissions.manage_channels:
             has_permission = True
-        
+
         if not has_permission:
             await interaction.response.send_message("❌ Only admins can mark tickets as completed.", ephemeral=True)
             return
@@ -1196,7 +1248,7 @@ class TicketManagementView(discord.ui.View):
             inline=False
         )
         embed.set_footer(text="STK Services • Order Fulfillment")
-        
+
         await interaction.response.send_message(embed=embed)
 
 # Error handling
@@ -1215,17 +1267,17 @@ if __name__ == "__main__":
         import threading
         from http.server import HTTPServer, BaseHTTPRequestHandler
         import os
-        
+
         class HealthHandler(BaseHTTPRequestHandler):
             def do_GET(self):
                 self.send_response(200)
                 self.send_header('Content-type', 'text/plain')
                 self.end_headers()
                 self.wfile.write(b'STK Discord Bot is running')
-                
+
             def log_message(self, format, *args):
                 pass  # Suppress HTTP server logs
-        
+
         # Start HTTP server for health checks
         port = int(os.getenv('PORT', 8000))
         server = HTTPServer(('0.0.0.0', port), HealthHandler)
@@ -1233,7 +1285,7 @@ if __name__ == "__main__":
         server_thread.daemon = True
         server_thread.start()
         logger.info(f"Health check server started on port {port}")
-        
+
         # Start Discord bot
         bot.run(BotConfig.get_bot_token())
     except Exception as e:
