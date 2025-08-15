@@ -482,6 +482,11 @@ async def on_command_error(ctx, error):
             description="You don't have permission to use this command.",
             color=0xe74c3c
         )
+        await ctx.send(embed=emembed = discord.Embed(
+            title="❌ Permission Denied", 
+            description="You don't have permission to use this command.",
+            color=0xe74c3c
+        )
         await ctx.send(embed=embed)
     else:
         print(f"Unexpected error: {error}")
@@ -511,6 +516,8 @@ if __name__ == '__main__':
         token = get_required_env('DISCORD_BOT_TOKEN')
         bot.run(token)
     except ValueError as e:
+        print(f"Error: {e}")
+        exit(1)
         print(f"Error: {e}")
         print("Please set your Discord bot token in the Secrets tool!")
         exit(1)
