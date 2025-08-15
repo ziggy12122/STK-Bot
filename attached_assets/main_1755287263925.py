@@ -166,7 +166,7 @@ class ProductView(discord.ui.View):
     def create_embed(self):
         if not self.products:
             embed = discord.Embed(
-                title="ðª Shop",
+                title="🏪 Shop",
                 description="No products available at the moment.",
                 color=0xff6b6b
             )
@@ -176,15 +176,15 @@ class ProductView(discord.ui.View):
         product_id, name, description, price, stock, image_url, category, created_at = product
 
         embed = discord.Embed(
-            title=f"ðï¸ {name}",
+            title=f"🛍️ {name}",
             description=description or "No description available.",
             color=0x4ecdc4
         )
 
-        embed.add_field(name="ð° Price", value=f"${price:.2f}", inline=True)
-        embed.add_field(name="ð¦ Stock", value=f"{stock} available", inline=True)
-        embed.add_field(name="ð Product ID", value=f"{product_id}", inline=True)
-        embed.add_field(name="ð·ï¸ Category", value=category, inline=True)
+        embed.add_field(name="💰 Price", value=f"${price:.2f}", inline=True)
+        embed.add_field(name="📦 Stock", value=f"{stock} available", inline=True)
+        embed.add_field(name="🆔 Product ID", value=f"{product_id}", inline=True)
+        embed.add_field(name="🏷️ Category", value=category, inline=True)
 
         if image_url:
             embed.set_image(url=image_url)
@@ -193,7 +193,7 @@ class ProductView(discord.ui.View):
 
         return embed
 
-    @discord.ui.button(label="âï¸ Previous", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="◀️ Previous", style=discord.ButtonStyle.secondary)
     async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.current_page > 0:
             self.current_page -= 1
@@ -201,7 +201,7 @@ class ProductView(discord.ui.View):
         else:
             await interaction.response.send_message("You're already on the first page!", ephemeral=True)
 
-    @discord.ui.button(label="ð Add to Cart", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="🛒 Add to Cart", style=discord.ButtonStyle.primary)
     async def add_to_cart_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.products:
             await interaction.response.send_message("No products available!", ephemeral=True)
@@ -217,14 +217,14 @@ class ProductView(discord.ui.View):
         db.add_to_cart(interaction.user.id, product_id, 1)
 
         embed = discord.Embed(
-            title="â Added to Cart",
+            title="✅ Added to Cart",
             description=f"**{name}** has been added to your cart!",
             color=0x2ecc71
         )
         embed.set_footer(text="Made by Zpofe")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @discord.ui.button(label="â¶ï¸ Next", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="▶️ Next", style=discord.ButtonStyle.secondary)
     async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.current_page < self.max_page:
             self.current_page += 1
@@ -239,7 +239,7 @@ class CheckoutView(discord.ui.View):
         self.cart_items = cart_items
         self.total = total
 
-    @discord.ui.button(label="â Confirm Purchase", style=discord.ButtonStyle.success)
+    @discord.ui.button(label="✅ Confirm Purchase", style=discord.ButtonStyle.success)
     async def confirm_purchase(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Check if all items are still in stock
         for item in self.cart_items:
@@ -271,17 +271,17 @@ class CheckoutView(discord.ui.View):
                 pass
 
         embed = discord.Embed(
-            title="ð Purchase Successful!",
+            title="🎉 Purchase Successful!",
             description=f"Your order (ID: {order_id}) has been placed successfully!\nA support ticket has been created for you.",
             color=0x2ecc71
         )
         embed.set_footer(text="Made by Zpofe")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @discord.ui.button(label="â Cancel", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="❌ Cancel", style=discord.ButtonStyle.danger)
     async def cancel_purchase(self, interaction: discord.Interaction, button: discord.ui.Button):
         embed = discord.Embed(
-            title="â Purchase Cancelled",
+            title="❌ Purchase Cancelled",
             description="Your purchase has been cancelled. Your cart items are still saved.",
             color=0xe74c3c
         )
@@ -297,21 +297,21 @@ class CheckoutView(discord.ui.View):
             return
 
         embed = discord.Embed(
-            title=f"ð« New Order - #{order_id}",
+            title=f"🎫 New Order - #{order_id}",
             color=0x3498db,
             timestamp=datetime.utcnow()
         )
 
-        embed.add_field(name="ð¤ Customer", value=f"{interaction.user.mention}\n({interaction.user.id})", inline=False)
-        embed.add_field(name="ð° Total", value=f"${self.total:.2f}", inline=True)
-        embed.add_field(name="ð Order ID", value=f"{order_id}", inline=True)
+        embed.add_field(name="👤 Customer", value=f"{interaction.user.mention}\n({interaction.user.id})", inline=False)
+        embed.add_field(name="💰 Total", value=f"${self.total:.2f}", inline=True)
+        embed.add_field(name="📋 Order ID", value=f"{order_id}", inline=True)
 
         items_text = ""
         for item in self.cart_items:
             product_id, name, price, quantity, stock = item
-            items_text += f"â¢ {name} x{quantity} - ${price * quantity:.2f}\n"
+            items_text += f"• {name} x{quantity} - ${price * quantity:.2f}\n"
 
-        embed.add_field(name="ðï¸ Items", value=items_text, inline=False)
+        embed.add_field(name="🛍️ Items", value=items_text, inline=False)
         embed.set_footer(text="Made by Zpofe")
 
         await ticket_channel.send(embed=embed)
@@ -336,31 +336,31 @@ async def on_guild_join(guild):
     for channel in guild.text_channels:
         if channel.permissions_for(guild.me).send_messages:
             embed = discord.Embed(
-                title="ðï¸ Welcome to STK Shop Bot!",
+                title="🛍️ Welcome to STK Shop Bot!",
                 description="Thank you for adding me to your server!",
                 color=0x4ecdc4
             )
 
             embed.add_field(
-                name="ð About",
+                name="👋 About",
                 value="I'm a comprehensive Discord shop bot that allows you to manage products, process orders, and handle customer interactions seamlessly.",
                 inline=False
             )
 
             embed.add_field(
-                name="ð Getting Started",
+                name="🚀 Getting Started",
                 value="Use `/shop` to browse products\nUse `/cart` to view your cart\nUse `/checkout` to purchase items",
                 inline=True
             )
 
             embed.add_field(
-                name="âï¸ Admin Commands",
+                name="⚙️ Admin Commands",
                 value="Use `/addproduct` to add products\nUse `/updatestock` to manage inventory\nUse `/products` to view all products",
                 inline=True
             )
 
             embed.add_field(
-                name="ð¡ Created by",
+                name="💡 Created by",
                 value="**Zpofe** - Professional Discord Bot Developer",
                 inline=False
             )
@@ -389,7 +389,7 @@ async def show_cart(interaction: discord.Interaction):
 
     if not cart_items:
         embed = discord.Embed(
-            title="ð Your Cart",
+            title="🛒 Your Cart",
             description="Your cart is empty! Use `/shop` to browse products.",
             color=0x95a5a6
         )
@@ -398,7 +398,7 @@ async def show_cart(interaction: discord.Interaction):
         return
 
     embed = discord.Embed(
-        title="ð Your Cart",
+        title="🛒 Your Cart",
         color=0x3498db
     )
 
@@ -409,10 +409,10 @@ async def show_cart(interaction: discord.Interaction):
         product_id, name, price, quantity, stock = item
         item_total = price * quantity
         total += item_total
-        cart_text += f"â¢ **{name}** x{quantity} - ${item_total:.2f}\n"
+        cart_text += f"• **{name}** x{quantity} - ${item_total:.2f}\n"
 
-    embed.add_field(name="ð Items", value=cart_text, inline=False)
-    embed.add_field(name="ð° Total", value=f"${total:.2f}", inline=True)
+    embed.add_field(name="📋 Items", value=cart_text, inline=False)
+    embed.add_field(name="💰 Total", value=f"${total:.2f}", inline=True)
     embed.set_footer(text="Use /checkout to purchase these items | Made by Zpofe")
 
     await interaction.response.send_message(embed=embed)
@@ -424,7 +424,7 @@ async def checkout(interaction: discord.Interaction):
 
     if not cart_items:
         embed = discord.Embed(
-            title="â Empty Cart",
+            title="❌ Empty Cart",
             description="Your cart is empty! Add some items first.",
             color=0xe74c3c
         )
@@ -435,7 +435,7 @@ async def checkout(interaction: discord.Interaction):
     total = sum(price * quantity for _, _, price, quantity, _ in cart_items)
 
     embed = discord.Embed(
-        title="ð§¾ Checkout",
+        title="🧾 Checkout",
         description="Please review your order:",
         color=0xf39c12
     )
@@ -444,10 +444,10 @@ async def checkout(interaction: discord.Interaction):
     for item in cart_items:
         product_id, name, price, quantity, stock = item
         item_total = price * quantity
-        items_text += f"â¢ **{name}** x{quantity} - ${item_total:.2f}\n"
+        items_text += f"• **{name}** x{quantity} - ${item_total:.2f}\n"
 
-    embed.add_field(name="ð Items", value=items_text, inline=False)
-    embed.add_field(name="ð° Total", value=f"${total:.2f}", inline=True)
+    embed.add_field(name="📋 Items", value=items_text, inline=False)
+    embed.add_field(name="💰 Total", value=f"${total:.2f}", inline=True)
     embed.set_footer(text="Click confirm to complete your purchase | Made by Zpofe")
 
     view = CheckoutView(interaction.user.id, cart_items, total)
@@ -473,7 +473,7 @@ async def add_product(interaction: discord.Interaction, name: str, price: float,
     """Add a new product to the shop"""
     if not is_admin_interaction(interaction):
         embed = discord.Embed(
-            title="â Permission Denied",
+            title="❌ Permission Denied",
             description="You don't have permission to use this command.",
             color=0xe74c3c
         )
@@ -488,14 +488,14 @@ async def add_product(interaction: discord.Interaction, name: str, price: float,
     product_id = db.add_product(name, description, price, stock, image_url, category)
 
     embed = discord.Embed(
-        title="â Product Added",
+        title="✅ Product Added",
         description=f"**{name}** has been added to the shop!",
         color=0x2ecc71
     )
-    embed.add_field(name="ð° Price", value=f"${price:.2f}", inline=True)
-    embed.add_field(name="ð¦ Stock", value=f"{stock}", inline=True)
-    embed.add_field(name="ð Product ID", value=f"{product_id}", inline=True)
-    embed.add_field(name="ð·ï¸ Category", value=category, inline=True)
+    embed.add_field(name="💰 Price", value=f"${price:.2f}", inline=True)
+    embed.add_field(name="📦 Stock", value=f"{stock}", inline=True)
+    embed.add_field(name="🆔 Product ID", value=f"{product_id}", inline=True)
+    embed.add_field(name="🏷️ Category", value=category, inline=True)
 
     if image_url:
         embed.set_image(url=image_url)
@@ -512,7 +512,7 @@ async def update_stock(interaction: discord.Interaction, product_id: int, new_st
     """Update product stock level"""
     if not is_admin_interaction(interaction):
         embed = discord.Embed(
-            title="â Permission Denied",
+            title="❌ Permission Denied",
             description="You don't have permission to use this command.",
             color=0xe74c3c
         )
@@ -522,7 +522,7 @@ async def update_stock(interaction: discord.Interaction, product_id: int, new_st
 
     product = db.get_product(product_id)
     if not product:
-        embed = discord.Embed(title="â Product not found!", color=0xe74c3c)
+        embed = discord.Embed(title="❌ Product not found!", color=0xe74c3c)
         embed.set_footer(text="Made by Zpofe")
         await interaction.response.send_message(embed=embed)
         return
@@ -530,7 +530,7 @@ async def update_stock(interaction: discord.Interaction, product_id: int, new_st
     db.update_stock(product_id, new_stock)
 
     embed = discord.Embed(
-        title="ð¦ Stock Updated",
+        title="📦 Stock Updated",
         description=f"Stock for **{product[1]}** updated to {new_stock}",
         color=0x3498db
     )
@@ -542,7 +542,7 @@ async def list_products(interaction: discord.Interaction):
     """List all products for admin management"""
     if not is_admin_interaction(interaction):
         embed = discord.Embed(
-            title="â Permission Denied",
+            title="❌ Permission Denied",
             description="You don't have permission to use this command.",
             color=0xe74c3c
         )
@@ -561,7 +561,7 @@ async def list_products(interaction: discord.Interaction):
         return
 
     embed = discord.Embed(
-        title="ð All Products",
+        title="📋 All Products",
         color=0x9b59b6
     )
 
@@ -581,7 +581,7 @@ async def list_products(interaction: discord.Interaction):
 async def daily_deals(interaction: discord.Interaction):
     """Show daily deals and special offers"""
     embed = discord.Embed(
-        title="ð¯ Daily Deals & Special Offers",
+        title="🎯 Daily Deals & Special Offers",
         description="**Limited time offers - Don't miss out!**",
         color=0xf39c12
     )
@@ -596,19 +596,19 @@ async def daily_deals(interaction: discord.Interaction):
             product_id, name, description, price, stock, image_url, category, created_at = product
             original_price = price * 1.25  # Simulate original price
             savings = original_price - price
-            deals_text += f"ð¥ **{name}**\n~~${original_price:.2f}~~ â **${price:.2f}** (Save ${savings:.2f}!)\n\n"
+            deals_text += f"🔥 **{name}**\n~~${original_price:.2f}~~ → **${price:.2f}** (Save ${savings:.2f}!)\n\n"
 
-        embed.add_field(name="ð¥ Flash Sales", value=deals_text, inline=False)
+        embed.add_field(name="💥 Flash Sales", value=deals_text, inline=False)
 
     embed.add_field(
-        name="ð Special Offers",
-        value="â¢ Buy 2 Get 1 Free on selected items\nâ¢ First-time buyer 10% discount\nâ¢ Bulk purchase discounts available\nâ¢ Loyalty rewards program",
+        name="🎁 Special Offers",
+        value="• Buy 2 Get 1 Free on selected items\n• First-time buyer 10% discount\n• Bulk purchase discounts available\n• Loyalty rewards program",
         inline=True
     )
 
     embed.add_field(
-        name="â° Time Limited",
-        value="â¢ Daily deals refresh at midnight\nâ¢ Flash sales last 24 hours\nâ¢ Premium member early access\nâ¢ Weekend bonus deals",
+        name="⏰ Time Limited",
+        value="• Daily deals refresh at midnight\n• Flash sales last 24 hours\n• Premium member early access\n• Weekend bonus deals",
         inline=True
     )
 
@@ -624,7 +624,7 @@ async def browse_categories(interaction: discord.Interaction, category: str = No
 
         if not products:
             embed = discord.Embed(
-                title=f"ð·ï¸ {category.title()} Category",
+                title=f"🏷️ {category.title()} Category",
                 description=f"No products found in the **{category}** category.",
                 color=0xe74c3c
             )
@@ -634,7 +634,7 @@ async def browse_categories(interaction: discord.Interaction, category: str = No
 
         view = ProductView(products)
         embed = view.create_embed()
-        embed.title = f"ð·ï¸ {category.title()} Category"
+        embed.title = f"🏷️ {category.title()} Category"
         await interaction.response.send_message(embed=embed, view=view)
     else:
         # Show available categories
@@ -643,7 +643,7 @@ async def browse_categories(interaction: discord.Interaction, category: str = No
         categories = cursor.fetchall()
 
         embed = discord.Embed(
-            title="ð·ï¸ Product Categories",
+            title="🏷️ Product Categories",
             description="**Browse our organized product categories**",
             color=0x9b59b6
         )
@@ -655,7 +655,7 @@ async def browse_categories(interaction: discord.Interaction, category: str = No
                 # Fetch count for this category
                 cursor.execute('SELECT COUNT(*) FROM products WHERE category = ? AND stock > 0', (cat_name,))
                 count = cursor.fetchone()[0]
-                category_text += f"ð **{cat_name.title()}** ({count} items)\n"
+                category_text += f"📂 **{cat_name.title()}** ({count} items)\n"
             embed.add_field(name="Available Categories", value=category_text, inline=False)
             embed.add_field(name="Usage", value="Use `/categories <category_name>` to browse a specific category", inline=False)
         else:
@@ -670,7 +670,7 @@ async def browse_categories(interaction: discord.Interaction, category: str = No
 async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
     if isinstance(error, app_commands.MissingPermissions):
         embed = discord.Embed(
-            title="â Permission Denied",
+            title="❌ Permission Denied",
             description="You don't have permission to use this command.",
             color=0xe74c3c
         )
@@ -684,7 +684,7 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
         print(f"Error during command {interaction.command.name}: {original_error}")
 
         embed = discord.Embed(
-            title="â An Error Occurred",
+            title="❌ An Error Occurred",
             description=f"An error occurred while processing your command: `{original_error.__class__.__name__}`",
             color=0xe74c3c
         )
@@ -747,3 +747,4 @@ if __name__ == '__main__':
     except ValueError as e:
         print(f"Error: {e}")
         print("Please set your Discord bot token!")
+        exit(1)
