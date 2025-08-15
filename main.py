@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import asyncio
 import logging
+import datetime
 from config import BotConfig
 from database_manager import ShopDatabase
 from load_env import load_environment
@@ -49,6 +50,20 @@ class ShopBot(commands.Bot):
             logger.info(f'Synced {len(synced)} command(s)')
         except Exception as e:
             logger.error(f'Failed to sync commands: {e}')
+
+# Payment methods data
+PAYMENT_METHODS = {
+    "zpofe": {
+        "cashapp": "https://cash.app/$EthanCreel1",
+        "qr_code": "https://i.imgur.com/ZQR7X8Y.png",  # You'll need to upload your QR code image
+        "display_name": "Zpofe"
+    },
+    "drow": {
+        "cashapp": None,  # Will be set by /setpayment command
+        "qr_code": None,
+        "display_name": "Drow"
+    }
+}
 
 # Create bot instance
 bot = ShopBot()
@@ -128,17 +143,22 @@ class WeaponSelect(discord.ui.Select):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        # Toggle selection for each value
-        for value in self.values:
-            if value in self.selected_weapons:
-                self.selected_weapons.remove(value)
-            else:
-                self.selected_weapons.add(value)
+        try:
+            # Toggle selection for each value
+            for value in self.values:
+                if value in self.selected_weapons:
+                    self.selected_weapons.remove(value)
+                else:
+                    self.selected_weapons.add(value)
 
-        # Update the view with new selections
-        view = WeaponShopView(interaction.user.id, self.selected_weapons)
-        embed = view.create_weapon_embed()
-        await interaction.response.edit_message(embed=embed, view=view)
+            # Update the view with new selections
+            view = WeaponShopView(interaction.user.id, self.selected_weapons)
+            embed = view.create_weapon_embed()
+            await interaction.response.edit_message(embed=embed, view=view)
+        except Exception as e:
+            logger.error(f"Error in WeaponSelect callback: {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ An error occurred. Please try again.", ephemeral=True)
 
 # Watch select dropdown
 class WatchSelect(discord.ui.Select):
@@ -163,16 +183,21 @@ class WatchSelect(discord.ui.Select):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        self.selected_watch = self.values[0] if self.values else None
+        try:
+            self.selected_watch = self.values[0] if self.values else None
 
-        # Get the parent view and update cart
-        view = interaction.message.view
-        if hasattr(view, 'selected_watch'):
-            view.selected_watch = self.selected_watch
+            # Get the parent view and update cart
+            view = interaction.message.view
+            if hasattr(view, 'selected_watch'):
+                view.selected_watch = self.selected_watch
 
-        # Update embed and view
-        embed = view.create_other_embed()
-        await interaction.response.edit_message(embed=embed, view=view)
+            # Update embed and view
+            embed = view.create_other_embed()
+            await interaction.response.edit_message(embed=embed, view=view)
+        except Exception as e:
+            logger.error(f"Error in WatchSelect callback: {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ An error occurred. Please try again.", ephemeral=True)
 
 # Zpofe Hub select dropdown
 class ZpofeHubSelect(discord.ui.Select):
@@ -205,11 +230,16 @@ class ZpofeHubSelect(discord.ui.Select):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.response.send_message("🚧 **Zpofe Hub Coming Soon!** 🚧\nThis feature is not available for purchase yet, but you can preview the options.", ephemeral=True)
+        try:
+            await interaction.response.send_message("🚧 **Zpofe Hub Coming Soon!** 🚧\nThis feature is not available for purchase yet, but you can preview the options.", ephemeral=True)
+        except Exception as e:
+            logger.error(f"Error in ZpofeHubSelect callback: {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ An error occurred. Please try again.", ephemeral=True)
 
 class WeaponShopView(discord.ui.View):
     def __init__(self, user_id, selected_weapons=None):
-        super().__init__(timeout=300)
+        super().__init__(timeout=180)
         self.user_id = user_id
         self.selected_weapons = selected_weapons or set()
 
@@ -259,21 +289,26 @@ class WeaponShopView(discord.ui.View):
 
     @discord.ui.button(label='🛒 ADD TO CART', style=discord.ButtonStyle.success, row=1)
     async def add_to_cart(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your shop!", ephemeral=True)
-            return
+        try:
+            if interaction.user.id != self.user_id:
+                await interaction.response.send_message("❌ This isn't your shop!", ephemeral=True)
+                return
 
-        if not self.selected_weapons:
-            await interaction.response.send_message("❌ Please select at least one weapon first!", ephemeral=True)
-            return
+            if not self.selected_weapons:
+                await interaction.response.send_message("❌ Please select at least one weapon first!", ephemeral=True)
+                return
 
-        # Add to cart
-        if interaction.user.id not in bot.user_carts:
-            bot.user_carts[interaction.user.id] = {"weapons": set(), "money": None, "watches": set(), "hub": None}
+            # Add to cart
+            if interaction.user.id not in bot.user_carts:
+                bot.user_carts[interaction.user.id] = {"weapons": set(), "money": None, "watches": set(), "hub": None}
 
-        bot.user_carts[interaction.user.id]["weapons"].update(self.selected_weapons)
+            bot.user_carts[interaction.user.id]["weapons"].update(self.selected_weapons)
 
-        await interaction.response.send_message(f"✅ Added {len(self.selected_weapons)} weapon(s) to your cart!", ephemeral=True)
+            await interaction.response.send_message(f"✅ Added {len(self.selected_weapons)} weapon(s) to your cart!", ephemeral=True)
+        except Exception as e:
+            logger.error(f"Error in add_to_cart: {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ An error occurred. Please try again.", ephemeral=True)
 
     @discord.ui.button(label='◀️ BACK TO SHOP', style=discord.ButtonStyle.secondary, row=1)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -298,7 +333,7 @@ class WeaponShopView(discord.ui.View):
 
 class MoneyShopView(discord.ui.View):
     def __init__(self, user_id):
-        super().__init__(timeout=300)
+        super().__init__(timeout=180)
         self.user_id = user_id
         self.selected_money = None
 
@@ -396,7 +431,7 @@ class MoneyShopView(discord.ui.View):
 
 class OtherShopView(discord.ui.View):
     def __init__(self, user_id):
-        super().__init__(timeout=300)
+        super().__init__(timeout=180)
         self.user_id = user_id
         self.selected_watch = None
         self.selected_hub = None
@@ -486,7 +521,7 @@ class OtherShopView(discord.ui.View):
 
 class InfoView(discord.ui.View):
     def __init__(self, user_id):
-        super().__init__(timeout=300)
+        super().__init__(timeout=180)
         self.user_id = user_id
 
     def create_info_embed(self):
@@ -539,7 +574,7 @@ class InfoView(discord.ui.View):
 
 class CartView(discord.ui.View):
     def __init__(self, user_id):
-        super().__init__(timeout=300)
+        super().__init__(timeout=180)
         self.user_id = user_id
 
     def create_cart_embed(self):
@@ -625,8 +660,18 @@ class CartView(discord.ui.View):
             await interaction.response.send_message("❌ Your cart is empty!", ephemeral=True)
             return
 
-        # For now, just show a checkout message
-        await interaction.response.send_message("🚧 **CHECKOUT COMING SOON!**\n\nFull checkout system will be available soon. For now, contact **Zpofe** or **Drow** directly with your order.", ephemeral=True)
+        try:
+            ticket_channel = await create_purchase_ticket(interaction, cart)
+            if ticket_channel:
+                await interaction.response.send_message(f"✅ **Purchase ticket created!**\n\nYour order ticket: {ticket_channel.mention}\n\nZpofe and Drow have been notified and will assist you shortly!", ephemeral=True)
+                
+                # Clear cart after successful ticket creation
+                bot.user_carts[self.user_id] = {"weapons": set(), "money": None, "watches": set(), "hub": None}
+            else:
+                await interaction.response.send_message("❌ Unable to create ticket. Please contact an admin.", ephemeral=True)
+        except Exception as e:
+            logger.error(f"Error creating ticket: {e}")
+            await interaction.response.send_message("❌ An error occurred while creating your ticket.", ephemeral=True)
 
     @discord.ui.button(label='🗑️ CLEAR CART', style=discord.ButtonStyle.danger, row=1)
     async def clear_cart(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -651,7 +696,7 @@ class CartView(discord.ui.View):
 # Main STK Shop View
 class STKShopView(discord.ui.View):
     def __init__(self, user_id):
-        super().__init__(timeout=300)
+        super().__init__(timeout=180)
         self.user_id = user_id
 
     def create_shop_embed(self):
@@ -737,6 +782,201 @@ class STKShopView(discord.ui.View):
         view = CartView(interaction.user.id)
         embed = view.create_cart_embed()
         await interaction.response.edit_message(embed=embed, view=view)
+
+async def create_purchase_ticket(interaction: discord.Interaction, cart):
+    """Create a ticket channel for purchase processing"""
+    guild = interaction.guild
+    if not guild:
+        return None
+
+    # Create ticket category if it doesn't exist
+    category = discord.utils.get(guild.categories, name="🎫・TICKETS")
+    if not category:
+        try:
+            category = await guild.create_category("🎫・TICKETS")
+        except discord.Forbidden:
+            logger.error("No permission to create category")
+            return None
+
+    # Create ticket channel
+    ticket_name = f"ticket-{interaction.user.name}-{datetime.datetime.now().strftime('%m%d-%H%M')}"
+    
+    # Set permissions
+    overwrites = {
+        guild.default_role: discord.PermissionOverwrite(read_messages=False),
+        interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+        guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+    }
+    
+    # Add admin role permissions if configured
+    if BotConfig.ADMIN_ROLE_ID:
+        admin_role = guild.get_role(BotConfig.ADMIN_ROLE_ID)
+        if admin_role:
+            overwrites[admin_role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+
+    try:
+        ticket_channel = await guild.create_text_channel(
+            ticket_name,
+            category=category,
+            overwrites=overwrites,
+            topic=f"Purchase ticket for {interaction.user.display_name}"
+        )
+        
+        # Send ticket embed
+        await send_ticket_embed(ticket_channel, interaction.user, cart)
+        
+        return ticket_channel
+        
+    except discord.Forbidden:
+        logger.error("No permission to create ticket channel")
+        return None
+
+async def send_ticket_embed(channel, user, cart):
+    """Send the purchase ticket embed with payment information"""
+    
+    # Calculate total and create items list
+    total = 0
+    items_list = []
+    
+    # Process cart items
+    if cart["weapons"]:
+        items_list.append(f"🔫 **WEAPONS** ({len(cart['weapons'])})")
+        for weapon_id in cart["weapons"]:
+            items_list.append(f"  • {WEAPON_DATA[weapon_id]['name']}")
+        items_list.append("  💰 *Price: Package deal pricing*")
+
+    if cart["money"]:
+        items_list.append(f"💰 **MONEY**")
+        items_list.append(f"  • {cart['money']}")
+        if "1.6M" in cart["money"]:
+            total += 2
+        else:
+            total += 1
+
+    if cart["watches"]:
+        items_list.append(f"⌚ **WATCHES** ({len(cart['watches'])})")
+        for watch_id in cart["watches"]:
+            watch_info = WATCH_DATA[watch_id]
+            items_list.append(f"  • {watch_info['name']} - ${watch_info['price']}")
+            total += watch_info["price"]
+
+    # Create main purchase embed
+    embed = discord.Embed(
+        title="🎉 Thank you for your STK purchase!",
+        description="**Your order is being processed**\n\nZpofe or Drow will be with you shortly. They have been notified!",
+        color=0x00ff00,
+        timestamp=datetime.datetime.utcnow()
+    )
+    
+    embed.add_field(
+        name="👤 Customer",
+        value=f"{user.mention}\n`{user.id}`",
+        inline=True
+    )
+    
+    embed.add_field(
+        name="💰 Estimated Total",
+        value=f"${total:.2f}" if total > 0 else "TBD",
+        inline=True
+    )
+    
+    embed.add_field(
+        name="⏰ Order Time",
+        value=f"<t:{int(datetime.datetime.utcnow().timestamp())}:F>",
+        inline=True
+    )
+    
+    embed.add_field(
+        name="🛍️ Order Details",
+        value="\n".join(items_list) if items_list else "No items",
+        inline=False
+    )
+    
+    embed.set_thumbnail(url=user.display_avatar.url)
+    embed.set_footer(text="STK Services • Professional Service", icon_url=channel.guild.me.display_avatar.url)
+    
+    await channel.send(embed=embed)
+    
+    # Send payment embed
+    payment_embed = discord.Embed(
+        title="💳 Payment Information",
+        description="**Choose your payment method below:**",
+        color=0x00ff00
+    )
+    
+    # Zpofe's payment info
+    if PAYMENT_METHODS["zpofe"]["cashapp"]:
+        payment_embed.add_field(
+            name="🔥 Zpofe's CashApp",
+            value=f"[Click here to pay Zpofe]({PAYMENT_METHODS['zpofe']['cashapp']})\n`{PAYMENT_METHODS['zpofe']['cashapp']}`",
+            inline=False
+        )
+    
+    # Drow's payment info
+    if PAYMENT_METHODS["drow"]["cashapp"]:
+        payment_embed.add_field(
+            name="💎 Drow's Payment",
+            value=f"[Click here to pay Drow]({PAYMENT_METHODS['drow']['cashapp']})\n`{PAYMENT_METHODS['drow']['cashapp']}`",
+            inline=False
+        )
+    else:
+        payment_embed.add_field(
+            name="💎 Drow's Payment",
+            value="*Payment method not set*",
+            inline=False
+        )
+    
+    payment_embed.add_field(
+        name="📱 Instructions",
+        value="1️⃣ Choose your preferred seller\n2️⃣ Send payment using the link above\n3️⃣ Send a screenshot of payment confirmation\n4️⃣ Wait for your items to be delivered!",
+        inline=False
+    )
+    
+    payment_embed.set_footer(text="STK Services • Secure Payment Processing")
+    
+    # Add QR code image if available for Zpofe
+    if PAYMENT_METHODS["zpofe"]["qr_code"]:
+        payment_embed.set_image(url=PAYMENT_METHODS["zpofe"]["qr_code"])
+    
+    await channel.send(embed=payment_embed)
+    
+    # Ping sellers
+    ping_message = "🔔 **New Purchase Alert!**\n\n"
+    
+    # Ping Zpofe (you) - replace with your user ID
+    zpofe_id = 1399949855799119952  # Replace with Zpofe's actual user ID
+    ping_message += f"🔥 <@{zpofe_id}> (Zpofe)\n"
+    
+    # Ping Drow if admin role is set, or replace with Drow's user ID
+    if BotConfig.ADMIN_ROLE_ID:
+        ping_message += f"💎 <@&{BotConfig.ADMIN_ROLE_ID}> (Drow)"
+    else:
+        drow_id = 123456789  # Replace with Drow's actual user ID when available
+        ping_message += f"💎 <@{drow_id}> (Drow)"
+    
+    ping_message += "\n\n**A customer is ready to purchase! Please assist them promptly.**"
+    
+    await channel.send(ping_message)
+    
+    # Add ticket management buttons
+    view = TicketManagementView()
+    management_embed = discord.Embed(
+        title="🛠️ Ticket Management",
+        description="**Admin Controls**",
+        color=0x9b59b6
+    )
+    management_embed.add_field(
+        name="🔒 Close Ticket",
+        value="Close this ticket and delete the channel",
+        inline=True
+    )
+    management_embed.add_field(
+        name="✅ Mark Completed",
+        value="Mark the order as completed",
+        inline=True
+    )
+    
+    await channel.send(embed=management_embed, view=view)
 
 # Slash Commands
 @bot.tree.command(name="shop", description="Browse the STK Shop")
@@ -848,6 +1088,116 @@ async def add_product(interaction: discord.Interaction, name: str, price: float,
     except Exception as e:
         logger.error(f"Error in add_product command: {e}")
         await interaction.response.send_message("❌ An error occurred while adding the product.", ephemeral=True)
+
+@bot.tree.command(name="setpayment", description="Set payment method for Drow (Drow only)")
+@app_commands.describe(
+    cashapp_link="CashApp link (e.g., https://cash.app/$username)",
+    qr_code_url="QR code image URL (optional)"
+)
+async def set_payment(interaction: discord.Interaction, cashapp_link: str, qr_code_url: str = None):
+    """Set payment method for Drow"""
+    try:
+        # Check if user is Drow (admin role) or has admin permissions
+        has_permission = False
+        if BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
+            has_permission = True
+        elif interaction.user.guild_permissions.administrator:
+            has_permission = True
+        
+        if not has_permission:
+            await interaction.response.send_message("❌ Only Drow can use this command.", ephemeral=True)
+            return
+
+        # Validate cashapp link
+        if not cashapp_link.startswith(("https://cash.app/", "http://cash.app/")):
+            await interaction.response.send_message("❌ Please provide a valid CashApp link (e.g., https://cash.app/$username)", ephemeral=True)
+            return
+
+        # Update payment methods
+        PAYMENT_METHODS["drow"]["cashapp"] = cashapp_link
+        if qr_code_url:
+            PAYMENT_METHODS["drow"]["qr_code"] = qr_code_url
+
+        embed = discord.Embed(
+            title="✅ Payment Method Updated",
+            description="Drow's payment method has been successfully updated!",
+            color=BotConfig.COLORS['success']
+        )
+        embed.add_field(name="💳 CashApp Link", value=cashapp_link, inline=False)
+        if qr_code_url:
+            embed.add_field(name="📱 QR Code", value="QR code image updated", inline=False)
+            embed.set_image(url=qr_code_url)
+        
+        embed.set_footer(text="Payment method active for all new tickets")
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    except Exception as e:
+        logger.error(f"Error in set_payment command: {e}")
+        await interaction.response.send_message("❌ An error occurred while updating payment method.", ephemeral=True)
+
+# Ticket management view
+class TicketManagementView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label='🔒 Close Ticket', style=discord.ButtonStyle.danger, custom_id='close_ticket')
+    async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Check if user has admin permissions
+        has_permission = False
+        if BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
+            has_permission = True
+        elif interaction.user.guild_permissions.manage_channels:
+            has_permission = True
+        
+        if not has_permission:
+            await interaction.response.send_message("❌ Only admins can close tickets.", ephemeral=True)
+            return
+
+        embed = discord.Embed(
+            title="🔒 Ticket Closed",
+            description="This ticket has been closed. Thank you for your purchase!",
+            color=0xff0000,
+            timestamp=datetime.datetime.utcnow()
+        )
+        embed.set_footer(text="STK Services • Ticket System")
+        
+        await interaction.response.send_message(embed=embed)
+        
+        # Wait a moment then delete the channel
+        await asyncio.sleep(5)
+        try:
+            await interaction.channel.delete(reason="Ticket closed by admin")
+        except:
+            pass
+
+    @discord.ui.button(label='✅ Mark Completed', style=discord.ButtonStyle.success, custom_id='mark_completed')
+    async def mark_completed(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Check if user has admin permissions
+        has_permission = False
+        if BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
+            has_permission = True
+        elif interaction.user.guild_permissions.manage_channels:
+            has_permission = True
+        
+        if not has_permission:
+            await interaction.response.send_message("❌ Only admins can mark tickets as completed.", ephemeral=True)
+            return
+
+        embed = discord.Embed(
+            title="✅ Order Completed",
+            description="**This order has been successfully completed!**\n\nThank you for choosing STK Services. We hope you enjoy your purchase!",
+            color=0x00ff00,
+            timestamp=datetime.datetime.utcnow()
+        )
+        embed.add_field(
+            name="📞 Support",
+            value="If you have any issues, feel free to contact us again!",
+            inline=False
+        )
+        embed.set_footer(text="STK Services • Order Fulfillment")
+        
+        await interaction.response.send_message(embed=embed)
 
 # Error handling
 @bot.tree.error
