@@ -854,6 +854,30 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
 
 if __name__ == "__main__":
     try:
+        # Add HTTP server for Koyeb health checks
+        import threading
+        from http.server import HTTPServer, BaseHTTPRequestHandler
+        import os
+        
+        class HealthHandler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200)
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b'STK Discord Bot is running')
+                
+            def log_message(self, format, *args):
+                pass  # Suppress HTTP server logs
+        
+        # Start HTTP server for health checks
+        port = int(os.getenv('PORT', 8000))
+        server = HTTPServer(('0.0.0.0', port), HealthHandler)
+        server_thread = threading.Thread(target=server.serve_forever)
+        server_thread.daemon = True
+        server_thread.start()
+        logger.info(f"Health check server started on port {port}")
+        
+        # Start Discord bot
         bot.run(BotConfig.get_bot_token())
     except Exception as e:
         logger.error(f"Failed to start bot: {e}")
