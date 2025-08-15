@@ -218,8 +218,8 @@ class WeaponShopView(discord.ui.View):
 
     def create_weapon_embed(self):
         embed = discord.Embed(
-            title="🔫 STK SHOP - WEAPONS",
-            description="**SOUTH BRONX ARMORY**\nSelect multiple weapons from our street collection:",
+            title="🔫 STK WEAPONS",
+            description="**STK ARMORY**\nSelect multiple weapons from our collection:\n**Fullys • Switches • Buttons • Binarys**",
             color=0x8B0000  # Dark red for STK branding
         )
 
@@ -249,12 +249,12 @@ class WeaponShopView(discord.ui.View):
         )
 
         embed.add_field(
-            name="🏪 SELLERS",
-            value="👤 **Zpofe**\n👤 **Drow**",
+            name="🎮 SELLER CARDS",
+            value="🔥 **Zpofe** - Services of all types\n💎 **Drow** - Services for THA BRONX 3",
             inline=True
         )
 
-        embed.set_footer(text="STK Services • South Bronx • Select weapons then checkout")
+        embed.set_footer(text="STK Weapons • THA BRONX 3 • Select weapons then checkout")
         return embed
 
     @discord.ui.button(label='🛒 ADD TO CART', style=discord.ButtonStyle.success, row=1)
@@ -304,13 +304,13 @@ class MoneyShopView(discord.ui.View):
 
     def create_money_embed(self):
         embed = discord.Embed(
-            title="💰 STK SHOP - MONEY",
-            description="**SOUTH BRONX BANK**\nGet your cash quick and easy!",
+            title="💰 STK CASH",
+            description="**STK BANK**\n**Unlimited Cash Available** - Get your money fast!",
             color=0x006400  # Dark green for money
         )
 
         embed.add_field(
-            name="💵 MONEY PACKAGES",
+            name="💵 UNLIMITED CASH PACKAGES",
             value="💰 **990K Cash** - $1.00\n🏦 **990K Bank Extension** - $1.00\n💳 **1.6M (More Wallet Gamepass)** - $2.00",
             inline=False
         )
@@ -329,12 +329,12 @@ class MoneyShopView(discord.ui.View):
             )
 
         embed.add_field(
-            name="🏪 SELLERS",
-            value="👤 **Zpofe**\n👤 **Drow**",
+            name="🎮 SELLER CARDS",
+            value="🔥 **Zpofe** - Services of all types\n💎 **Drow** - Services for THA BRONX 3",
             inline=True
         )
 
-        embed.set_footer(text="STK Services • South Bronx • Fast money delivery")
+        embed.set_footer(text="STK Cash • THA BRONX 3 • Unlimited cash delivery")
         return embed
 
     @discord.ui.button(label='💰 990K CASH - $1', style=discord.ButtonStyle.success, row=1)
@@ -407,8 +407,8 @@ class OtherShopView(discord.ui.View):
 
     def create_other_embed(self):
         embed = discord.Embed(
-            title="📦 STK SHOP - OTHER",
-            description="**SOUTH BRONX EXTRAS**\nWatches, Scripts & More!",
+            title="📦 STK OTHER",
+            description="**STK EXTRAS**\n**Watches • Scripts • Ext**\nPremium accessories & tools!",
             color=0x4B0082  # Dark purple
         )
 
@@ -435,12 +435,12 @@ class OtherShopView(discord.ui.View):
         )
 
         embed.add_field(
-            name="🏪 SELLERS",
-            value="👤 **Zpofe**\n👤 **Drow**",
+            name="🎮 SELLER CARDS",
+            value="🔥 **Zpofe** - Services of all types\n💎 **Drow** - Services for THA BRONX 3",
             inline=True
         )
 
-        embed.set_footer(text="STK Services • South Bronx • Premium extras")
+        embed.set_footer(text="STK Other • THA BRONX 3 • Premium extras")
         return embed
 
     @discord.ui.button(label='🛒 ADD TO CART', style=discord.ButtonStyle.success, row=2)
@@ -492,19 +492,19 @@ class InfoView(discord.ui.View):
     def create_info_embed(self):
         embed = discord.Embed(
             title="ℹ️ STK SHOP - INFO",
-            description="**SOUTH BRONX HEADQUARTERS**\nYour trusted street suppliers since day one!",
+            description="**THA BRONX 3 HEADQUARTERS**\nYour trusted street suppliers since day one!",
             color=0x1E90FF  # Blue
         )
 
         embed.add_field(
-            name="👥 OUR SELLERS",
-            value="🔥 **Zpofe** - Lead Supplier\n🔥 **Drow** - Senior Supplier\n\n*Trusted, reliable, fast delivery*",
+            name="🎮 SELLER CARDS",
+            value="🔥 **Zpofe** - Services of all types\n💎 **Drow** - Services for THA BRONX 3\n\n*Trusted, reliable, fast delivery*",
             inline=False
         )
 
         embed.add_field(
-            name="🚧 COMING SOON",
-            value="💻 **Zpofe Hub Script Collection**\n🎮 **New Game Support**",
+            name="🔥 AVAILABLE NOW",
+            value="💻 **THA BRONX 3 Services** are the only ones available for purchase right now\n🎮 **All other services coming soon**",
             inline=False
         )
 
@@ -516,11 +516,11 @@ class InfoView(discord.ui.View):
 
         embed.add_field(
             name="📞 LOCATIONS",
-            value="🏙️ **South Bronx** (Active)\n\n*Expanding to new territories soon*",
+            value="🏙️ **THA BRONX 3** (Active)\n\n*Expanding to new territories soon*",
             inline=True
         )
 
-        embed.set_footer(text="STK Services • South Bronx • Est. 2024")
+        embed.set_footer(text="STK Services • THA BRONX 3 • Est. 2024")
         return embed
 
     @discord.ui.button(label='📞 SUPPORT', style=discord.ButtonStyle.primary, row=1)
@@ -545,7 +545,7 @@ class CartView(discord.ui.View):
     def create_cart_embed(self):
         embed = discord.Embed(
             title="🛒 STK SHOP - CART",
-            description="**YOUR SOUTH BRONX ORDER**\nReview your items before checkout:",
+            description="**YOUR THA BRONX 3 ORDER**\nReview your items before checkout:",
             color=0xFF6347  # Orange-red
         )
 
@@ -605,12 +605,12 @@ class CartView(discord.ui.View):
                 )
 
         embed.add_field(
-            name="🏪 SELLERS",
-            value="👤 **Zpofe**\n👤 **Drow**",
+            name="🎮 SELLER CARDS",
+            value="🔥 **Zpofe** - Services of all types\n💎 **Drow** - Services for THA BRONX 3",
             inline=True
         )
 
-        embed.set_footer(text="STK Services • South Bronx • Secure checkout")
+        embed.set_footer(text="STK Services • THA BRONX 3 • Secure checkout")
         return embed
 
     @discord.ui.button(label='💳 CHECKOUT', style=discord.ButtonStyle.success, row=1)
@@ -662,30 +662,30 @@ class STKShopView(discord.ui.View):
         )
 
         embed.add_field(
-            name="🔫 WEAPONS",
-            value="Premium switches, triggers & more\n*Package deals available*",
+            name="🔫 STK WEAPONS",
+            value="**Fullys, Switches, Buttons, Binarys**\n*Premium package deals available*",
             inline=True
         )
 
         embed.add_field(
-            name="💰 MONEY",
-            value="Fast cash & bank extensions\n*990K - 1.6M available*",
+            name="💰 STK CASH",
+            value="**Unlimited Cash Available**\n*Fast delivery guaranteed*",
             inline=True
         )
 
         embed.add_field(
             name="📦 OTHER",
-            value="Luxury watches & Zpofe Hub\n*Premium accessories*",
+            value="**Watches, Scripts, Ext**\n*Premium accessories & tools*",
             inline=True
         )
 
         embed.add_field(
-            name="🏪 OUR SELLERS",
-            value="👤 **Zpofe** - Lead Supplier\n👤 **Drow** - Senior Supplier",
+            name="🎮 SELLER CARDS",
+            value="🔥 **Zpofe** - Services of all types\n💎 **Drow** - Services for THA BRONX 3",
             inline=False
         )
 
-        embed.set_footer(text="STK Services • South Bronx • Philly Streets Coming Soon")
+        embed.set_footer(text="STK Services • THA BRONX 3 • Premium Quality")
         return embed
 
     @discord.ui.button(label='🔫 WEAPONS', style=discord.ButtonStyle.danger, row=1)
@@ -751,6 +751,58 @@ async def shop(interaction: discord.Interaction):
     except Exception as e:
         logger.error(f"Error in shop command: {e}")
         await interaction.response.send_message("❌ An error occurred while loading the shop.", ephemeral=True)
+
+@bot.tree.command(name="clear", description="Delete bot messages from this channel")
+@app_commands.describe(
+    amount="Number of bot messages to delete (default: 10, max: 100)"
+)
+async def clear_messages(interaction: discord.Interaction, amount: int = 10):
+    """Delete bot messages from the current channel"""
+    try:
+        # Limit the amount to prevent abuse
+        if amount > 100:
+            amount = 100
+        elif amount < 1:
+            amount = 1
+
+        # Check if user has manage messages permission
+        if not interaction.user.guild_permissions.manage_messages:
+            await interaction.response.send_message("❌ You need 'Manage Messages' permission to use this command.", ephemeral=True)
+            return
+
+        await interaction.response.send_message(f"🧹 Clearing up to {amount} bot messages...", ephemeral=True)
+
+        # Get messages from the channel
+        messages_deleted = 0
+        async for message in interaction.channel.history(limit=500):  # Check last 500 messages
+            if messages_deleted >= amount:
+                break
+            
+            # Only delete messages from this bot
+            if message.author == bot.user:
+                try:
+                    await message.delete()
+                    messages_deleted += 1
+                    await asyncio.sleep(0.5)  # Rate limit protection
+                except discord.errors.NotFound:
+                    # Message was already deleted
+                    continue
+                except discord.errors.Forbidden:
+                    # Bot doesn't have permission to delete this message
+                    continue
+
+        # Send confirmation
+        if messages_deleted > 0:
+            await interaction.followup.send(f"✅ Successfully deleted {messages_deleted} bot message(s).", ephemeral=True)
+        else:
+            await interaction.followup.send("ℹ️ No bot messages found to delete.", ephemeral=True)
+
+    except Exception as e:
+        logger.error(f"Error in clear command: {e}")
+        if not interaction.response.is_done():
+            await interaction.response.send_message("❌ An error occurred while clearing messages.", ephemeral=True)
+        else:
+            await interaction.followup.send("❌ An error occurred while clearing messages.", ephemeral=True)
 
 @bot.tree.command(name="addproduct", description="Add a new product (Admin only)")
 @app_commands.describe(
