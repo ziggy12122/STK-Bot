@@ -1031,19 +1031,45 @@ async def send_ticket_embed(channel, user, cart):
     await channel.send(embed=management_embed, view=view)
 
 # Slash Commands
-@bot.tree.command(name="shop", description="Browse the STK Shop")
-async def shop(interaction: discord.Interaction):
-    """Browse the STK Shop - Available to everyone"""
+@bot.tree.command(name="setup", description="Setup the STK Shop interface for everyone to use")
+async def setup_shop(interaction: discord.Interaction):
+    """Setup the STK Shop interface - Creates a persistent shop that everyone can interact with"""
     try:
+        # Check if user has admin permissions
+        has_permission = False
+        if interaction.user.guild_permissions.manage_channels:
+            has_permission = True
+        elif BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
+            has_permission = True
+
+        if not has_permission:
+            await interaction.response.send_message("❌ You need 'Manage Channels' permission or Admin role to setup the shop.", ephemeral=True)
+            return
+
+        await interaction.response.defer()
+
         view = PersistentSTKShopView() # Use the persistent view
         embed = view.create_shop_embed()
 
-        # Make the shop response public (not ephemeral) so everyone can see it
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=False)
+        # Add setup success message to embed
+        embed.add_field(
+            name="🚀 SHOP SETUP COMPLETE",
+            value="✅ Shop is now live and ready for customers!\n🔄 Interface stays active 24/7\n👥 Everyone can interact with it",
+            inline=False
+        )
+
+        # Send the shop interface publicly so everyone can use it
+        await interaction.followup.send(embed=embed, view=view)
+
+        # Send confirmation to admin
+        await interaction.followup.send("✅ **STK Shop has been successfully setup!** The shop interface is now live and available for all customers to use 24/7.", ephemeral=True)
 
     except Exception as e:
-        logger.error(f"Error in shop command: {e}")
-        await interaction.response.send_message("❌ An error occurred while loading the shop.", ephemeral=True)
+        logger.error(f"Error in setup_shop command: {e}")
+        if not interaction.response.is_done():
+            await interaction.response.send_message("❌ An error occurred while setting up the shop.", ephemeral=True)
+        else:
+            await interaction.followup.send("❌ An error occurred while setting up the shop.", ephemeral=True)
 
 @bot.tree.command(name="clear", description="Delete bot messages from this channel")
 @app_commands.describe(
