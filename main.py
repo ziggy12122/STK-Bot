@@ -720,6 +720,29 @@ if __name__ == '__main__':
     # Get bot token from environment
     try:
         token = get_required_env('DISCORD_BOT_TOKEN')
+        
+        # Add HTTP server for Koyeb compatibility
+        import threading
+        from http.server import HTTPServer, BaseHTTPRequestHandler
+        
+        class HealthHandler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200)
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b'Discord Bot is running')
+                
+            def log_message(self, format, *args):
+                pass  # Suppress HTTP server logs
+        
+        # Start HTTP server for health checks
+        port = int(os.getenv('PORT', 8000))
+        server = HTTPServer(('0.0.0.0', port), HealthHandler)
+        server_thread = threading.Thread(target=server.serve_forever)
+        server_thread.daemon = True
+        server_thread.start()
+        print(f"Health check server running on port {port}")
+        
         bot.run(token)
     except ValueError as e:
         print(f"Error: {e}")
