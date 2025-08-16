@@ -1,22 +1,18 @@
 
 import os
-from dotenv import load_dotenv
 
 def load_environment():
     """Load environment variables from .env file if it exists"""
-    if os.path.exists('.env'):
-        load_dotenv('.env')
-        print("✅ Loaded environment variables from .env file")
-    else:
-        print("ℹ️  No .env file found, using system environment variables")
-
-def get_required_env(key: str) -> str:
-    """Get a required environment variable or raise an error"""
-    value = os.getenv(key)
-    if not value:
-        raise ValueError(f"Required environment variable {key} is not set!")
-    return value
-
-def get_optional_env(key: str, default=None):
-    """Get an optional environment variable with a default value"""
-    return os.getenv(key, default)
+    env_file = '.env'
+    
+    if os.path.exists(env_file):
+        with open(env_file, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    os.environ[key.strip()] = value.strip()
+    
+    # Also check for Replit secrets (environment variables are automatically loaded)
+    # This function mainly exists for local development with .env files
+    pass

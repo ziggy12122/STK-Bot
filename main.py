@@ -59,6 +59,96 @@ class ShopBot(commands.Bot):
         """This is called when the bot is starting up"""
         logger.info("Bot is starting up...")
 
+# Create bot instance
+bot = ShopBot()
+
+# Autocomplete function for user directory
+async def member_autocomplete(interaction: discord.Interaction, current: str):
+    # Auto-detect members when command is used
+    auto_detect_members(interaction.guild)
+
+    # Return all members that match the current input
+    choices = []
+    for member_key, member_data in STK_DIRECTORY.items():
+        member_name = member_data['rank']
+        if current.lower() in member_name.lower():
+            choices.append(app_commands.Choice(name=member_name, value=member_key))
+
+    # Limit to 25 choices (Discord limit)
+    return choices[:25]
+
+# User directory command with autocomplete
+@bot.tree.command(name="user", description="Display STK member directory card")
+@app_commands.describe(member="Select an STK member to view their profile")
+@app_commands.autocomplete(member=member_autocomplete)
+async def user_directory(interaction: discord.Interaction, member: str):
+    """Display professional STK member directory card"""
+    try:
+        if member not in STK_DIRECTORY:
+            await interaction.response.send_message("❌ Member not found in directory.", ephemeral=True)
+            return
+
+        member_data = STK_DIRECTORY[member]
+        user_id = member_data["user_id"]
+
+        # Try to get the Discord user
+        try:
+            discord_user = await bot.fetch_user(user_id)
+            username = discord_user.display_name
+            avatar_url = discord_user.display_avatar.url
+        except:
+            username = f"User {user_id}"
+            avatar_url = None
+
+        # Create professional member card
+        embed = discord.Embed(
+            title=f"{member_data['rank']}",
+            description=f"**{member_data['role']}**\n{member_data['description']}",
+            color=member_data['color'],
+            timestamp=datetime.datetime.utcnow()
+        )
+
+        # Set user avatar if available
+        if avatar_url:
+            embed.set_thumbnail(url=avatar_url)
+
+        # Member info
+        embed.add_field(
+            name="👤 Member Info",
+            value=f"**Discord:** <@{user_id}>\n**Status:** {member_data['status']}\n**Joined STK:** {member_data['joined']}",
+            inline=True
+        )
+
+        # Specialties
+        embed.add_field(
+            name="🎯 Specialties",
+            value="\n".join([f"• {specialty}" for specialty in member_data['specialties']]),
+            inline=True
+        )
+
+        # Achievements
+        embed.add_field(
+            name="🏆 Achievements",
+            value="\n".join([f"🔥 {achievement}" for achievement in member_data['achievements']]),
+            inline=False
+        )
+
+        # STK branding
+        embed.set_footer(
+            text="STK Supply • Official Directory • Elite Members Only",
+            icon_url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif"
+        )
+
+        # Add custom card image if available, otherwise use default
+        card_image = member_data.get("card_image", "https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif")
+        embed.set_image(url=card_image)
+
+        await interaction.response.send_message(embed=embed)
+
+    except Exception as e:
+        logger.error(f"Error in user_directory command: {e}")
+        await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
+
 # Payment methods data
 PAYMENT_METHODS = {
     "zpofe": {
@@ -76,8 +166,69 @@ PAYMENT_METHODS = {
 # Customer role ID
 CUSTOMER_ROLE_ID = 1405942363721044199
 
-# Create bot instance
-bot = ShopBot()
+# STK Directory Data - Updated for 2025
+STK_DIRECTORY = {
+    "king_slime": {
+        "user_id": 954818761729376357,
+        "rank": "🐍 King Slime 🐍",
+        "role": "Leader",
+        "description": "Supreme leader of STK operations",
+        "specialties": ["Leadership", "Strategy", "Operations"],
+        "status": "Active",
+        "joined": "2025",
+        "achievements": ["Founded STK", "50+ Operations", "Elite Status"],
+        "color": 0xFFD700,
+        "card_image": "https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif"
+    },
+    "zpofe": {
+        "user_id": 1385239185006268457,
+        "rank": "🪖 General 🪖",
+        "role": "Main Connect & Developer",
+        "description": "Lead developer and primary connection for all services",
+        "specialties": ["Development", "Connections", "Customer Service"],
+        "status": "Active",
+        "joined": "2025",
+        "achievements": ["3+ Years Experience", "Bot Developer", "Top Seller"],
+        "color": 0xFF0000,
+        "card_image": "https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif"
+    },
+    "asai": {
+        "user_id": 666394721039417346,
+        "rank": "🪖 General 🪖",
+        "role": "Operations General",
+        "description": "Strategic operations and coordination specialist",
+        "specialties": ["Operations", "Coordination", "Strategy"],
+        "status": "Active",
+        "joined": "2025",
+        "achievements": ["Strategic Mastermind", "Operations Expert"],
+        "color": 0x00FF00,
+        "card_image": "https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif"
+    },
+    "drow": {
+        "user_id": 1394285950464426066,
+        "rank": "🪖 General 🪖 | 🔌 Plug 🔌 | 👏 Top Smacka 👏",
+        "role": "Multi-Role Elite",
+        "description": "Premium connections and top-tier operations specialist",
+        "specialties": ["Premium Services", "Elite Operations", "Connections"],
+        "status": "Active",
+        "joined": "2025",
+        "achievements": ["Multi-Role Elite", "Premium Connect", "Top Performer"],
+        "color": 0x9932CC,
+        "card_image": "https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif"
+    },
+    "member5": {
+        "user_id": 1106038406317871184,
+        "rank": "👏 Top Smacka 👏",
+        "role": "Elite Operator",
+        "description": "High-performance operations specialist",
+        "specialties": ["Elite Operations", "Performance", "Execution"],
+        "status": "Active",
+        "joined": "2025",
+        "achievements": ["Top Performance", "Elite Status"],
+        "color": 0xFF6600,
+        "card_image": "https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif"
+    }
+}
 
 # Weapon data
 WEAPON_DATA = {
@@ -139,45 +290,48 @@ MONEY_DATA = {
     "max_bank_1600k_gp": {"name": "Max Bank 1.6M (Gamepass)", "price": 2, "type": "gamepass"}
 }
 
-# Package data
+# Storage package data - these are storage types, not weapon bundles
 PACKAGE_DATA = {
-    "full_safe": {
-        "name": "FULL SAFE",
+    "safe_storage": {
+        "name": "SAFE STORAGE",
         "price": 3,
-        "description": "Complete safe arsenal",
-        "weapons": ["GoldenButton", "GreenSwitch", "BlueTips/Switch", "OrangeButton", "YellowButtonSwitch", "FullyARP", "FullyDraco", "Fully-MicroAR", "Cyanbutton", "BinaryTrigger"]
+        "description": "Store weapons in your safe",
+        "storage_type": "safe"
     },
-    "full_bag": {
-        "name": "FULL BAG", 
+    "bag_storage": {
+        "name": "BAG STORAGE",
         "price": 2,
-        "description": "Complete bag loadout",
-        "weapons": ["100RndTanG19", "300ARG", "VP9Scope", "MasterPiece30", "GSwitch", "G17WittaButton", "G19Switch", "G20Switch"]
+        "description": "Store weapons in your bag",
+        "storage_type": "bag"
     },
-    "full_trunk": {
-        "name": "FULL TRUNK",
-        "price": 1, 
-        "description": "Complete trunk setup",
-        "weapons": ["G21Switch", "G22 Switch", "G23 Switch", "G40 Switch", "G42 Switch", "Fully-FN", "BinaryARP", "BinaryG17", "BinaryDraco", "CustomAR9"]
+    "trunk_storage": {
+        "name": "TRUNK STORAGE",
+        "price": 1,
+        "description": "Store weapons in your trunk",
+        "storage_type": "trunk"
     }
 }
 
-# Package select dropdown
-class PackageSelect(discord.ui.Select):
-    def __init__(self, user_id):
+# Storage select dropdown
+class StorageSelect(discord.ui.Select):
+    def __init__(self, user_id, selected_storage=None):
         self.user_id = user_id
+        self.selected_storage = selected_storage
 
         options = []
         for package_id, package_info in PACKAGE_DATA.items():
+            is_selected = package_id == self.selected_storage
+            label = f"✅ {package_info['name']}" if is_selected else package_info['name']
             options.append(discord.SelectOption(
-                label=package_info['name'],
+                label=label,
                 value=package_id,
                 description=f"${package_info['price']} - {package_info['description']}",
                 emoji="📦"
             ))
 
         super().__init__(
-            placeholder="Select a package to auto-fill weapons...",
-            min_values=1,
+            placeholder="Select storage type for your weapons...",
+            min_values=0,
             max_values=1,
             options=options
         )
@@ -188,31 +342,19 @@ class PackageSelect(discord.ui.Select):
                 await interaction.response.send_message("❌ This isn't your shop session!", ephemeral=True)
                 return
 
-            selected_package = self.values[0]
-            package_weapons = set(PACKAGE_DATA[selected_package]["weapons"])
-            
-            # Update view with package weapons selected
-            view = WeaponShopView(interaction.user.id, package_weapons)
+            self.selected_storage = self.values[0] if self.values else None
+
+            # Get the parent view and update storage
+            view = interaction.message.view
+            if hasattr(view, 'selected_storage'):
+                view.selected_storage = self.selected_storage
+
+            # Update embed and view
             embed = view.create_weapon_embed()
-            
-            # Add package info to embed
-            package_info = PACKAGE_DATA[selected_package]
-            embed.add_field(
-                name=f"📦 SELECTED PACKAGE: {package_info['name']}",
-                value=f"**${package_info['price']}** - {package_info['description']}\n✅ {len(package_weapons)} weapons auto-selected",
-                inline=False
-            )
-            
             await interaction.response.edit_message(embed=embed, view=view)
-            
-            # Add package to cart automatically
-            if interaction.user.id not in bot.user_carts:
-                bot.user_carts[interaction.user.id] = {"weapons": set(), "money": set(), "watches": set(), "packages": set(), "hub": None}
-            
-            bot.user_carts[interaction.user.id]["packages"].add(selected_package)
-            
+
         except Exception as e:
-            logger.error(f"Error in PackageSelect callback: {e}")
+            logger.error(f"Error in StorageSelect callback: {e}")
             if not interaction.response.is_done():
                 await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
 
@@ -358,18 +500,17 @@ class MoneySelect(discord.ui.Select):
                 await interaction.response.send_message("❌ Some shit went wrong. Try again.", ephemeral=True)
 
 class WeaponShopView(discord.ui.View):
-    def __init__(self, user_id, selected_weapons=None, show_package_select=False):
+    def __init__(self, user_id, selected_weapons=None, selected_storage=None):
         super().__init__(timeout=180)
         self.user_id = user_id
         self.selected_weapons = selected_weapons or set()
-        self.show_package_select = show_package_select
+        self.selected_storage = selected_storage
 
         # Add the weapon select dropdown with user_id
         self.add_item(WeaponSelect(self.selected_weapons, self.user_id))
-        
-        # Add package select if requested
-        if self.show_package_select:
-            self.add_item(PackageSelect(self.user_id))
+
+        # Add storage select dropdown
+        self.add_item(StorageSelect(self.user_id, self.selected_storage))
 
     def create_weapon_embed(self):
         embed = discord.Embed(
@@ -396,30 +537,23 @@ class WeaponShopView(discord.ui.View):
                 inline=True
             )
 
-        embed.add_field(
-            name="💰 PACKAGES",
-            value="🔥 **FULL SAFE:** $3\n💼 **FULL BAG:** $2\n🚛 **FULL TRUNK:** $1",
-            inline=True
-        )
+        # Storage selection display
+        if self.selected_storage:
+            storage_info = PACKAGE_DATA[self.selected_storage]
+            embed.add_field(
+                name="📦 SELECTED STORAGE",
+                value=f"✅ {storage_info['name']} - ${storage_info['price']}\n{storage_info['description']}",
+                inline=True
+            )
+        else:
+            embed.add_field(
+                name="📦 SELECT STORAGE",
+                value="🔥 **SAFE:** $3\n💼 **BAG:** $2\n🚛 **TRUNK:** $1",
+                inline=True
+            )
 
         embed.set_footer(text="STK Supply • No BS business")
         return embed
-
-    @discord.ui.button(label='📦 SELECT PACKAGE', style=discord.ButtonStyle.primary, emoji='📦', row=1)
-    async def select_package(self, interaction: discord.Interaction, button: discord.ui.Button):
-        try:
-            if interaction.user.id != self.user_id:
-                await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
-                return
-
-            # Show package selection view
-            view = WeaponShopView(self.user_id, self.selected_weapons, show_package_select=True)
-            embed = view.create_weapon_embed()
-            await interaction.response.edit_message(embed=embed, view=view)
-        except Exception as e:
-            logger.error(f"Error in select_package: {e}")
-            if not interaction.response.is_done():
-                await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
 
     @discord.ui.button(label='🛒 ADD', style=discord.ButtonStyle.success, emoji='🔥', row=1)
     async def add_to_cart(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -428,17 +562,32 @@ class WeaponShopView(discord.ui.View):
                 await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
                 return
 
-            if not self.selected_weapons:
-                await interaction.response.send_message("❌ Pick some shit first!", ephemeral=True)
+            if not self.selected_weapons and not self.selected_storage:
+                await interaction.response.send_message("❌ Pick some weapons or storage first!", ephemeral=True)
                 return
 
             # Add to cart
             if interaction.user.id not in bot.user_carts:
                 bot.user_carts[interaction.user.id] = {"weapons": set(), "money": set(), "watches": set(), "packages": set(), "hub": None}
 
-            bot.user_carts[interaction.user.id]["weapons"].update(self.selected_weapons)
+            if self.selected_weapons:
+                bot.user_carts[interaction.user.id]["weapons"].update(self.selected_weapons)
 
-            await interaction.response.send_message(f"✅ Added {len(self.selected_weapons)} items!", ephemeral=True)
+            if self.selected_storage:
+                bot.user_carts[interaction.user.id]["packages"].add(self.selected_storage)
+
+            message = f"✅ Added "
+            if self.selected_weapons:
+                message += f"{len(self.selected_weapons)} weapons"
+            if self.selected_storage:
+                storage_name = PACKAGE_DATA[self.selected_storage]['name']
+                if self.selected_weapons:
+                    message += f" + {storage_name}"
+                else:
+                    message += storage_name
+            message += "!"
+
+            await interaction.response.send_message(message, ephemeral=True)
         except Exception as e:
             logger.error(f"Error in add_to_cart: {e}")
             if not interaction.response.is_done():
@@ -723,9 +872,9 @@ class CartView(discord.ui.View):
                 items.append(f"  • {watch_info['name']} - ${watch_info['price']}")
                 total += watch_info["price"]
 
-        # Packages
+        # Storage packages
         if cart["packages"]:
-            items.append(f"📦 **PACKAGES** ({len(cart['packages'])})")
+            items.append(f"📦 **STORAGE** ({len(cart['packages'])})")
             for package_id in cart["packages"]:
                 if package_id in PACKAGE_DATA:
                     package_info = PACKAGE_DATA[package_id]
@@ -942,7 +1091,7 @@ class PersonalSTKShopView(discord.ui.View):
 
     @discord.ui.button(label='📦 PREMIUM', style=discord.ButtonStyle.secondary, emoji='💎', row=1)
     async def other_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = OtherShopView(self.user_id)
+        view = OtherShopView(interaction.user_id)
         embed = view.create_other_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
@@ -1000,7 +1149,7 @@ class PersistentSTKShopView(discord.ui.View):
 
         embed.add_field(
             name="👑 THE CREW",
-            value="💀 **ZPOFE** - Main connect • 3+ years\n⚡ **DROW** - Specialist • Premium connects",
+            value="💀 **ZPOFE** • ⚡ **DROW**",
             inline=False
         )
 
@@ -1036,7 +1185,7 @@ class PersistentSTKShopView(discord.ui.View):
     @discord.ui.button(label='📦 PREMIUM', style=discord.ButtonStyle.secondary, emoji='💎', row=1)
     async def other_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Each user gets their own other shop view
-        view = OtherShopView(interaction.user.id)
+        view = OtherShopView(interaction.user_id)
         embed = view.create_other_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
@@ -1513,7 +1662,7 @@ async def send_delivery_tutorials(channel, cart):
 
         weapons_embed.add_field(
             name="⚡ STEP 3: Delivery",
-            value="Zpofe/Drow will **join your server**\nThey will **teleport to you**\nThey will **dupe and give** your weapons",
+            value="Zpofe/Drow will **join your server**\nThey will **dupe and give** your weapons",
             inline=False
         )
 
@@ -1588,6 +1737,542 @@ async def setup_shop(interaction: discord.Interaction):
                 await interaction.edit_original_response(content="❌ Some shit went wrong.")
         except discord.NotFound:
             logger.error("Could not send error message")
+
+# Card Editing Views and Components
+class CardEditModal(discord.ui.Modal):
+    def __init__(self, member_key: str, field_type: str, current_value: str = "", user_id: int = None, edit_view=None):
+        super().__init__(title=f"Edit {field_type.title()}")
+        self.member_key = member_key
+        self.field_type = field_type
+        self.user_id = user_id
+        self.edit_view = edit_view
+
+        if field_type == "description":
+            self.field = discord.ui.TextInput(
+                label="Description",
+                placeholder="Enter member description...",
+                default=current_value,
+                max_length=200,
+                style=discord.TextStyle.paragraph
+            )
+        elif field_type == "role":
+            self.field = discord.ui.TextInput(
+                label="Role",
+                placeholder="Enter member role...",
+                default=current_value,
+                max_length=100
+            )
+        elif field_type == "status":
+            self.field = discord.ui.TextInput(
+                label="Status",
+                placeholder="Active, Inactive, etc...",
+                default=current_value,
+                max_length=50
+            )
+        elif field_type == "joined":
+            self.field = discord.ui.TextInput(
+                label="Joined Year",
+                placeholder="2025",
+                default=current_value,
+                max_length=10
+            )
+        elif field_type == "card_image":
+            self.field = discord.ui.TextInput(
+                label="Card Image URL",
+                placeholder="https://example.com/image.gif",
+                default=current_value,
+                max_length=500
+            )
+
+        self.add_item(self.field)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            # Only allow users to edit their own cards
+            if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
+                await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
+                return
+
+            # Store change temporarily in edit view
+            if self.edit_view:
+                self.edit_view.pending_changes[self.field_type] = self.field.value
+
+            await interaction.response.send_message(f"✅ {self.field_type.title()} staged for update. Click 'Confirm Changes' to save all changes.", ephemeral=True)
+
+        except Exception as e:
+            logger.error(f"Error staging card change: {e}")
+            await interaction.response.send_message("❌ Failed to stage change.", ephemeral=True)
+
+class SpecialtiesEditModal(discord.ui.Modal):
+    def __init__(self, member_key: str, current_specialties: list, user_id: int = None, edit_view=None):
+        super().__init__(title="Edit Specialties")
+        self.member_key = member_key
+        self.user_id = user_id
+        self.edit_view = edit_view
+
+        specialties_text = "\n".join(current_specialties)
+        self.specialties_field = discord.ui.TextInput(
+            label="Specialties (one per line)",
+            placeholder="Development\nConnections\nCustomer Service",
+            default=specialties_text,
+            max_length=500,
+            style=discord.TextStyle.paragraph
+        )
+        self.add_item(self.specialties_field)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            # Only allow users to edit their own cards
+            if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
+                await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
+                return
+
+            # Convert text to list and store temporarily
+            new_specialties = [specialty.strip() for specialty in self.specialties_field.value.split('\n') if specialty.strip()]
+            if self.edit_view:
+                self.edit_view.pending_changes["specialties"] = new_specialties
+
+            await interaction.response.send_message("✅ Specialties staged for update. Click 'Confirm Changes' to save all changes.", ephemeral=True)
+
+        except Exception as e:
+            logger.error(f"Error staging specialties change: {e}")
+            await interaction.response.send_message("❌ Failed to stage change.", ephemeral=True)
+
+class AchievementsEditModal(discord.ui.Modal):
+    def __init__(self, member_key: str, current_achievements: list, user_id: int = None, edit_view=None):
+        super().__init__(title="Edit Achievements")
+        self.member_key = member_key
+        self.user_id = user_id
+        self.edit_view = edit_view
+
+        achievements_text = "\n".join(current_achievements)
+        self.achievements_field = discord.ui.TextInput(
+            label="Achievements (one per line)",
+            placeholder="Bot Developer\nTop Seller\nElite Status",
+            default=achievements_text,
+            max_length=500,
+            style=discord.TextStyle.paragraph
+        )
+        self.add_item(self.achievements_field)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            # Only allow users to edit their own cards
+            if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
+                await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
+                return
+
+            # Convert text to list and store temporarily
+            new_achievements = [achievement.strip() for achievement in self.achievements_field.value.split('\n') if achievement.strip()]
+            if self.edit_view:
+                self.edit_view.pending_changes["achievements"] = new_achievements
+
+            await interaction.response.send_message("✅ Achievements staged for update. Click 'Confirm Changes' to save all changes.", ephemeral=True)
+
+        except Exception as e:
+            logger.error(f"Error staging achievements change: {e}")
+            await interaction.response.send_message("❌ Failed to stage change.", ephemeral=True)
+
+class ColorSelectView(discord.ui.View):
+    def __init__(self, member_key: str, user_id: int = None, edit_view=None):
+        super().__init__(timeout=300)
+        self.member_key = member_key
+        self.user_id = user_id
+        self.edit_view = edit_view
+
+    @discord.ui.button(label='🔴 Red', style=discord.ButtonStyle.danger)
+    async def red_color(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.update_color(interaction, 0xFF0000)
+
+    @discord.ui.button(label='🟢 Green', style=discord.ButtonStyle.success)
+    async def green_color(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.update_color(interaction, 0x00FF00)
+
+    @discord.ui.button(label='🔵 Blue', style=discord.ButtonStyle.primary)
+    async def blue_color(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.update_color(interaction, 0x0000FF)
+
+    @discord.ui.button(label='🟡 Gold', style=discord.ButtonStyle.secondary)
+    async def gold_color(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.update_color(interaction, 0xFFD700)
+
+    @discord.ui.button(label='🟣 Purple', style=discord.ButtonStyle.secondary)
+    async def purple_color(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.update_color(interaction, 0x9932CC)
+
+    @discord.ui.button(label='🟠 Orange', style=discord.ButtonStyle.secondary)
+    async def orange_color(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.update_color(interaction, 0xFF6600)
+
+    @discord.ui.button(label='⚫ Black', style=discord.ButtonStyle.secondary)
+    async def black_color(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.update_color(interaction, 0x000000)
+
+    @discord.ui.button(label='⚪ White', style=discord.ButtonStyle.secondary)
+    async def white_color(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.update_color(interaction, 0xFFFFFF)
+
+    async def update_color(self, interaction: discord.Interaction, color: int):
+        try:
+            # Only allow users to edit their own cards
+            if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
+                await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
+                return
+
+            # Store color change temporarily
+            if self.edit_view:
+                self.edit_view.pending_changes["color"] = color
+
+            await interaction.response.send_message("✅ Color staged for update. Click 'Confirm Changes' to save all changes.", ephemeral=True)
+
+        except Exception as e:
+            logger.error(f"Error staging color change: {e}")
+            await interaction.response.send_message("❌ Failed to stage change.", ephemeral=True)
+
+class CardEditView(discord.ui.View):
+    def __init__(self, member_key: str, user_id: int = None):
+        super().__init__(timeout=300)
+        self.member_key = member_key
+        self.user_id = user_id
+        self.pending_changes = {}  # Store pending changes before confirmation
+
+    @discord.ui.button(label='📝 Edit Description', style=discord.ButtonStyle.secondary, row=0)
+    async def edit_description(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Only allow editing own card
+        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
+            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
+            return
+
+        current_value = STK_DIRECTORY[self.member_key].get("description", "")
+        modal = CardEditModal(self.member_key, "description", current_value, interaction.user.id, self)
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label='💼 Edit Role', style=discord.ButtonStyle.secondary, row=0)
+    async def edit_role(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Only allow editing own card
+        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
+            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
+            return
+
+        current_value = STK_DIRECTORY[self.member_key].get("role", "")
+        modal = CardEditModal(self.member_key, "role", current_value, interaction.user.id, self)
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label='📊 Edit Status', style=discord.ButtonStyle.secondary, row=0)
+    async def edit_status(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Only allow editing own card
+        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
+            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
+            return
+
+        current_value = STK_DIRECTORY[self.member_key].get("status", "")
+        modal = CardEditModal(self.member_key, "status", current_value, interaction.user.id, self)
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label='📅 Edit Joined', style=discord.ButtonStyle.secondary, row=1)
+    async def edit_joined(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Only allow editing own card
+        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
+            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
+            return
+
+        current_value = STK_DIRECTORY[self.member_key].get("joined", "")
+        modal = CardEditModal(self.member_key, "joined", current_value, interaction.user.id, self)
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label='🖼️ Edit Image', style=discord.ButtonStyle.secondary, row=1)
+    async def edit_image(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Only allow editing own card
+        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
+            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
+            return
+
+        current_value = STK_DIRECTORY[self.member_key].get("card_image", "")
+        modal = CardEditModal(self.member_key, "card_image", current_value, interaction.user.id, self)
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label='🎯 Edit Specialties', style=discord.ButtonStyle.primary, row=2)
+    async def edit_specialties(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Only allow editing own card
+        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
+            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
+            return
+
+        current_specialties = STK_DIRECTORY[self.member_key].get("specialties", [])
+        modal = SpecialtiesEditModal(self.member_key, current_specialties, interaction.user.id, self)
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label='🏅 Edit Achievements', style=discord.ButtonStyle.primary, row=2)
+    async def edit_achievements(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Only allow editing own card
+        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
+            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
+            return
+
+        current_achievements = STK_DIRECTORY[self.member_key].get("achievements", [])
+        modal = AchievementsEditModal(self.member_key, current_achievements, interaction.user.id, self)
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label='🎨 Change Color', style=discord.ButtonStyle.primary, row=2)
+    async def change_color(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Only allow editing own card
+        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
+            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
+            return
+
+        color_view = ColorSelectView(self.member_key, interaction.user.id, self)
+        embed = discord.Embed(
+            title="🎨 Choose Your Card Color",
+            description="Select a color for your member card:",
+            color=STK_DIRECTORY[self.member_key]["color"]
+        )
+        await interaction.response.send_message(embed=embed, view=color_view, ephemeral=True)
+
+    @discord.ui.button(label='👁️ Preview Card', style=discord.ButtonStyle.success, row=3)
+    async def preview_card(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Show updated card preview with pending changes
+        member_data = STK_DIRECTORY[self.member_key].copy()
+        
+        # Apply pending changes to preview
+        for field, value in self.pending_changes.items():
+            member_data[field] = value
+        
+        user_id = member_data["user_id"]
+
+        # Try to get the Discord user
+        try:
+            discord_user = await bot.fetch_user(user_id)
+            username = discord_user.display_name
+            avatar_url = discord_user.display_avatar.url
+        except:
+            username = f"User {user_id}"
+            avatar_url = None
+
+        # Create professional member card
+        embed = discord.Embed(
+            title=f"{member_data['rank']}",
+            description=f"**{member_data['role']}**\n{member_data['description']}",
+            color=member_data['color'],
+            timestamp=datetime.datetime.utcnow()
+        )
+
+        # Set user avatar if available
+        if avatar_url:
+            embed.set_thumbnail(url=avatar_url)
+
+        # Member info
+        embed.add_field(
+            name="👤 Member Info",
+            value=f"**Discord:** <@{user_id}>\n**Status:** {member_data['status']}\n**Joined STK:** {member_data['joined']}",
+            inline=True
+        )
+
+        # Specialties
+        embed.add_field(
+            name="🎯 Specialties",
+            value="\n".join([f"• {specialty}" for specialty in member_data['specialties']]),
+            inline=True
+        )
+
+        # Achievements
+        embed.add_field(
+            name="🏆 Achievements",
+            value="\n".join([f"🔥 {achievement}" for achievement in member_data['achievements']]),
+            inline=False
+        )
+
+        # STK branding
+        embed.set_footer(
+            text="STK Supply • Official Directory • Your Card Preview (With Pending Changes)",
+            icon_url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif"
+        )
+
+        # Add card image if available
+        if member_data.get("card_image"):
+            embed.set_image(url=member_data["card_image"])
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @discord.ui.button(label='✅ CONFIRM CHANGES', style=discord.ButtonStyle.success, row=4)
+    async def confirm_changes(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Only allow users to edit their own cards
+        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
+            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
+            return
+
+        if not self.pending_changes:
+            await interaction.response.send_message("❌ No changes to save.", ephemeral=True)
+            return
+
+        try:
+            # Apply all pending changes to the actual directory
+            for field, value in self.pending_changes.items():
+                STK_DIRECTORY[self.member_key][field] = value
+
+            # Create confirmation message
+            changes_list = []
+            for field, value in self.pending_changes.items():
+                if field == "specialties" or field == "achievements":
+                    changes_list.append(f"**{field.title()}:** {len(value)} items")
+                else:
+                    changes_list.append(f"**{field.title()}:** Updated")
+
+            embed = discord.Embed(
+                title="✅ CHANGES SAVED",
+                description="Your card has been successfully updated!",
+                color=0x00FF00
+            )
+            
+            embed.add_field(
+                name="📝 Applied Changes",
+                value="\n".join(changes_list),
+                inline=False
+            )
+
+            embed.set_footer(text="STK Supply • Card Updated Successfully")
+
+            # Clear pending changes
+            self.pending_changes = {}
+
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            logger.info(f"User {interaction.user.id} confirmed card changes for {self.member_key}")
+
+        except Exception as e:
+            logger.error(f"Error confirming card changes: {e}")
+            await interaction.response.send_message("❌ Failed to save changes.", ephemeral=True)
+
+    @discord.ui.button(label='❌ DISCARD CHANGES', style=discord.ButtonStyle.danger, row=4)
+    async def discard_changes(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Only allow users to edit their own cards
+        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
+            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
+            return
+
+        if not self.pending_changes:
+            await interaction.response.send_message("❌ No changes to discard.", ephemeral=True)
+            return
+
+        # Clear pending changes
+        discarded_count = len(self.pending_changes)
+        self.pending_changes = {}
+
+        embed = discord.Embed(
+            title="❌ CHANGES DISCARDED",
+            description=f"Discarded {discarded_count} pending change(s).",
+            color=0xFF0000
+        )
+        embed.set_footer(text="STK Supply • Changes Discarded")
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        logger.info(f"User {interaction.user.id} discarded card changes for {self.member_key}")
+
+# Function to automatically detect and add new members
+def auto_detect_members(guild):
+    """Automatically detect new members and add them to directory"""
+    if not guild:
+        return
+
+    # Get all members from the guild
+    for member in guild.members:
+        if member.bot:
+            continue
+
+        # Check if member is already in directory
+        member_exists = False
+        for member_key, member_data in STK_DIRECTORY.items():
+            if member_data["user_id"] == member.id:
+                member_exists = True
+                break
+
+        # If not in directory, add as new member
+        if not member_exists:
+            member_key = f"member_{member.id}"
+            STK_DIRECTORY[member_key] = {
+                "user_id": member.id,
+                "rank": "👤 Member 👤",
+                "role": "Member",
+                "description": "STK member",
+                "specialties": ["Member"],
+                "status": "Active",
+                "joined": "2025",
+                "achievements": ["STK Member"],
+                "color": 0x808080,
+                "card_image": "https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif"
+            }
+            logger.info(f"Auto-added new member: {member.display_name} ({member.id})")
+
+# Function to get user's own card key
+def get_user_card_key(user_id: int) -> str:
+    """Get the card key for a user's own card"""
+    for member_key, member_data in STK_DIRECTORY.items():
+        if member_data["user_id"] == user_id:
+            return member_key
+
+    # If user not found, create new member entry
+    member_key = f"member_{user_id}"
+    STK_DIRECTORY[member_key] = {
+        "user_id": user_id,
+        "rank": "👤 Member 👤",
+        "role": "Member",
+        "description": "STK member",
+        "specialties": ["Member"],
+        "status": "Active",
+        "joined": "2025",
+        "achievements": ["STK Member"],
+        "color": 0x808080,
+        "card_image": "https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif"
+    }
+    logger.info(f"Auto-created card for user: {user_id}")
+    return member_key
+
+# Edit Card Command - Users can only edit their own card
+@bot.tree.command(name="editcard", description="Edit your STK member directory card")
+async def edit_card(interaction: discord.Interaction):
+    """Edit your own STK member directory card"""
+    try:
+        # Auto-detect members when command is used
+        auto_detect_members(interaction.guild)
+
+        # Get user's own card
+        member_key = get_user_card_key(interaction.user.id)
+        member_data = STK_DIRECTORY[member_key]
+
+        # Create edit interface for user's own card
+        edit_view = CardEditView(member_key, interaction.user.id)
+        embed = discord.Embed(
+            title=f"🛠️ Editing Your Card: {member_data['rank']}",
+            description="**Your Card Editor**\nCustomize your member card below:",
+            color=member_data['color']
+        )
+
+        embed.add_field(
+            name="📝 Current Info",
+            value=f"**Role:** {member_data['role']}\n**Status:** {member_data['status']}\n**Joined:** {member_data['joined']}",
+            inline=True
+        )
+
+        embed.add_field(
+            name="🎯 Current Specialties",
+            value="\n".join([f"• {specialty}" for specialty in member_data['specialties'][:3]]) +
+                  (f"\n• ...and {len(member_data['specialties']) - 3} more" if len(member_data['specialties']) > 3 else ""),
+            inline=True
+        )
+
+        embed.add_field(
+            name="⚠️ Note",
+            value="You can only edit your own card.\nRank cannot be changed.",
+            inline=False
+        )
+
+        embed.set_footer(text="STK Supply • Your Card Editor • Changes save automatically")
+
+        await interaction.response.send_message(embed=embed, view=edit_view, ephemeral=True)
+
+    except Exception as e:
+        logger.error(f"Error in edit_card command: {e}")
+        await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
+
+
 
 # Setup STK Join command
 @bot.tree.command(name="setup_stkjoin", description="Setup the STK Join system")

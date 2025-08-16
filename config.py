@@ -1,6 +1,9 @@
-
 import os
+from load_env import load_environment
 from typing import Optional
+
+# Load environment variables
+load_environment()
 
 class BotConfig:
     """Centralized configuration for the Discord shop bot"""
@@ -9,10 +12,10 @@ class BotConfig:
     PREFIX = '!'
     
     # Discord IDs (set via environment variables)
-    ADMIN_ROLE_ID: Optional[int] = None
-    SHOP_CHANNEL_ID: Optional[int] = None
-    TICKET_CHANNEL_ID: Optional[int] = None
-    CUSTOMER_ROLE_ID: Optional[int] = None
+    ADMIN_ROLE_ID: Optional[int] = int(os.getenv('ADMIN_ROLE_ID', 0)) or None
+    SHOP_CHANNEL_ID: Optional[int] = int(os.getenv('SHOP_CHANNEL_ID', 0)) or None
+    TICKET_CHANNEL_ID: Optional[int] = int(os.getenv('TICKET_CHANNEL_ID', 0)) or None
+    CUSTOMER_ROLE_ID: Optional[int] = int(os.getenv('CUSTOMER_ROLE_ID', 0)) or None
     
     # Database settings
     DATABASE_PATH = 'shop.db'
