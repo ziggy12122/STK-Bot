@@ -1,4 +1,3 @@
-
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -36,7 +35,7 @@ class ShopBot(commands.Bot):
         )
 
         self.db = db
-        self.user_carts = {}  # Store user carts in memory
+        self.user_carts = {}  # Store user carts in memory - each user gets their own isolated cart
 
     async def on_ready(self):
         logger.info(f'{self.user} has connected to Discord!')
@@ -134,8 +133,9 @@ WATCH_DATA = {
 
 # Multi-select dropdown for weapons
 class WeaponSelect(discord.ui.Select):
-    def __init__(self, selected_weapons=None):
+    def __init__(self, selected_weapons=None, user_id=None):
         self.selected_weapons = selected_weapons or set()
+        self.user_id = user_id
 
         options = []
         for weapon_id, weapon_info in list(WEAPON_DATA.items())[:25]:  # Discord limit
@@ -156,6 +156,11 @@ class WeaponSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         try:
+            # Ensure only the correct user can interact
+            if self.user_id and interaction.user.id != self.user_id:
+                await interaction.response.send_message("❌ This isn't your shop session!", ephemeral=True)
+                return
+
             # Toggle selection for each value
             for value in self.values:
                 if value in self.selected_weapons:
@@ -174,8 +179,9 @@ class WeaponSelect(discord.ui.Select):
 
 # Watch select dropdown
 class WatchSelect(discord.ui.Select):
-    def __init__(self, selected_watch=None):
+    def __init__(self, selected_watch=None, user_id=None):
         self.selected_watch = selected_watch
+        self.user_id = user_id
 
         options = []
         for watch_id, watch_info in WATCH_DATA.items():
@@ -196,6 +202,11 @@ class WatchSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         try:
+            # Ensure only the correct user can interact
+            if self.user_id and interaction.user.id != self.user_id:
+                await interaction.response.send_message("❌ This isn't your shop session!", ephemeral=True)
+                return
+
             self.selected_watch = self.values[0] if self.values else None
 
             # Get the parent view and update cart
@@ -217,8 +228,8 @@ class WeaponShopView(discord.ui.View):
         self.user_id = user_id
         self.selected_weapons = selected_weapons or set()
 
-        # Add the weapon select dropdown
-        self.add_item(WeaponSelect(self.selected_weapons))
+        # Add the weapon select dropdown with user_id
+        self.add_item(WeaponSelect(self.selected_weapons, self.user_id))
 
     def create_weapon_embed(self):
         embed = discord.Embed(
@@ -279,8 +290,9 @@ class WeaponShopView(discord.ui.View):
 
     @discord.ui.button(label='◀️ BACK', style=discord.ButtonStyle.secondary, row=1)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = PersistentSTKShopView()
-        embed = view.create_shop_embed()
+        # Always go back to personal shop since this is user-specific
+        view = PersonalSTKShopView(self.user_id)
+        embed = view.create_personal_shop_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
     @discord.ui.button(label='🗑️ CLEAR', style=discord.ButtonStyle.danger, row=1)
@@ -294,29 +306,36 @@ class WeaponShopView(discord.ui.View):
         embed = view.create_weapon_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
+# Money data with regular and gamepass options
+MONEY_DATA = {
+    "max_money_990k": {"name": "Max Money 990k", "price": 1, "type": "regular"},
+    "max_bank_990k": {"name": "Max Bank 990k", "price": 1, "type": "regular"},
+    "max_money_1600k_gp": {"name": "Max Money 1.6M (Gamepass)", "price": 2, "type": "gamepass"},
+    "max_bank_1600k_gp": {"name": "Max Bank 1.6M (Gamepass)", "price": 2, "type": "gamepass"}
+}
+
 # Multi-select money options
 class MoneySelect(discord.ui.Select):
-    def __init__(self, selected_money=None):
+    def __init__(self, selected_money=None, user_id=None):
         self.selected_money = selected_money or set()
-
-        money_options = [
-            ("full_bag", "Full Bag - $2"),
-            ("full_safe", "Full Safe - $3"),
-            ("full_trunk", "Full Trunk - $1")
-        ]
+        self.user_id = user_id
 
         options = []
-        for money_id, money_name in money_options:
+        for money_id, money_info in MONEY_DATA.items():
             is_selected = money_id in self.selected_money
-            label = f"✅ {money_name}" if is_selected else money_name
+            label = f"✅ {money_info['name']}" if is_selected else money_info['name']
+            description = f"${money_info['price']} - {'GP Required' if money_info['type'] == 'gamepass' else 'No GP'}"
+            if is_selected:
+                description = "Selected"
+
             options.append(discord.SelectOption(
                 label=label,
                 value=money_id,
-                description="Selected" if is_selected else "Click to add"
+                description=description
             ))
 
         super().__init__(
-            placeholder="Pick your cash packages...",
+            placeholder="Pick your money packages...",
             min_values=0,
             max_values=len(options),
             options=options
@@ -324,6 +343,11 @@ class MoneySelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         try:
+            # Ensure only the correct user can interact
+            if self.user_id and interaction.user.id != self.user_id:
+                await interaction.response.send_message("❌ This isn't your shop session!", ephemeral=True)
+                return
+
             # Toggle selection for each value
             for value in self.values:
                 if value in self.selected_money:
@@ -338,7 +362,7 @@ class MoneySelect(discord.ui.Select):
         except Exception as e:
             logger.error(f"Error in MoneySelect callback: {e}")
             if not interaction.response.is_done():
-                await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
+                await interaction.response.send_message("❌ Some shit went wrong. Try again.", ephemeral=True)
 
 class MoneyShopView(discord.ui.View):
     def __init__(self, user_id, selected_money=None):
@@ -346,38 +370,56 @@ class MoneyShopView(discord.ui.View):
         self.user_id = user_id
         self.selected_money = selected_money or set()
 
-        # Add the money select dropdown
-        self.add_item(MoneySelect(self.selected_money))
+        # Add the money select dropdown with user_id
+        self.add_item(MoneySelect(self.selected_money, self.user_id))
 
     def create_money_embed(self):
         embed = discord.Embed(
             title="💰 CASH FLOW",
-            description="**Clean money moves** • Full bag, full safe, full trunk\n**$1-$3** packages • No questions asked",
+            description="**Clean money packages** • Regular & Gamepass options\n**$1-$2** packages • Max out your cash",
             color=0x00FF00
         )
 
+        # Regular packages
+        regular_packages = []
+        gamepass_packages = []
+
+        for money_id, money_info in MONEY_DATA.items():
+            package_text = f"{money_info['name']} - ${money_info['price']}"
+            if money_info['type'] == 'regular':
+                regular_packages.append(f"💰 **{package_text}**")
+            else:
+                gamepass_packages.append(f"💎 **{package_text}**")
+
         embed.add_field(
-            name="💸 AVAILABLE PACKAGES",
-            value="💰 **Full Bag** - $2\n🏦 **Full Safe** - $3\n💳 **Full Trunk** - $1",
+            name="💸 REGULAR PACKAGES",
+            value="\n".join(regular_packages),
+            inline=True
+        )
+
+        embed.add_field(
+            name="🎮 GAMEPASS PACKAGES",
+            value="\n".join(gamepass_packages),
             inline=True
         )
 
         if self.selected_money:
-            money_names = {
-                "full_bag": "Full Bag - $2",
-                "full_safe": "Full Safe - $3", 
-                "full_trunk": "Full Trunk - $1"
-            }
-            selected_list = [f"💵 {money_names[m]}" for m in self.selected_money]
+            selected_list = []
+            total_cost = 0
+            for money_id in self.selected_money:
+                money_info = MONEY_DATA[money_id]
+                selected_list.append(f"💵 {money_info['name']} - ${money_info['price']}")
+                total_cost += money_info['price']
+
             embed.add_field(
-                name=f"✅ SELECTED ({len(self.selected_money)})",
+                name=f"✅ SELECTED ({len(self.selected_money)}) - Total: ${total_cost}",
                 value="\n".join(selected_list),
-                inline=True
+                inline=False
             )
 
         embed.add_field(
             name="💼 HOW IT WORKS",
-            value="1️⃣ Black Market\n2️⃣ Put phone/drill up\n3️⃣ We buy it for price",
+            value="1️⃣ Go to Black Market\n2️⃣ Put phone/drill up for sale\n3️⃣ We buy it for exact amount",
             inline=False
         )
 
@@ -403,8 +445,9 @@ class MoneyShopView(discord.ui.View):
 
     @discord.ui.button(label='◀️ BACK', style=discord.ButtonStyle.secondary, row=1)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = PersistentSTKShopView()
-        embed = view.create_shop_embed()
+        # Always go back to personal shop since this is user-specific
+        view = PersonalSTKShopView(self.user_id)
+        embed = view.create_personal_shop_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
 class OtherShopView(discord.ui.View):
@@ -413,13 +456,13 @@ class OtherShopView(discord.ui.View):
         self.user_id = user_id
         self.selected_watch = None
 
-        # Add dropdowns
-        self.add_item(WatchSelect(self.selected_watch))
+        # Add dropdowns with user_id
+        self.add_item(WatchSelect(self.selected_watch, self.user_id))
 
     def create_other_embed(self):
         embed = discord.Embed(
             title="📦 PREMIUM GEAR",
-            description="**High-end connections** • Watches & Scripts\n**$1+** Designer pieces • Custom codes",
+            description="**High-end connections** • Watches & Scripts\n**$1** Designer pieces • Custom codes",
             color=0x9932CC
         )
 
@@ -470,8 +513,9 @@ class OtherShopView(discord.ui.View):
 
     @discord.ui.button(label='◀️ BACK', style=discord.ButtonStyle.secondary, row=1)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = PersistentSTKShopView()
-        embed = view.create_shop_embed()
+        # Always go back to personal shop since this is user-specific
+        view = PersonalSTKShopView(self.user_id)
+        embed = view.create_personal_shop_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
 class InfoView(discord.ui.View):
@@ -513,8 +557,9 @@ class InfoView(discord.ui.View):
 
     @discord.ui.button(label='◀️ BACK', style=discord.ButtonStyle.secondary, row=1)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = PersistentSTKShopView()
-        embed = view.create_shop_embed()
+        # Always go back to personal shop since this is user-specific
+        view = PersonalSTKShopView(self.user_id)
+        embed = view.create_personal_shop_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
 class CartView(discord.ui.View):
@@ -544,19 +589,10 @@ class CartView(discord.ui.View):
         # Money
         if cart["money"]:
             items.append(f"💰 **MONEY** ({len(cart['money'])})")
-            money_names = {
-                "full_bag": "Full Bag - $2",
-                "full_safe": "Full Safe - $3", 
-                "full_trunk": "Full Trunk - $1"
-            }
-            money_prices = {
-                "full_bag": 2,
-                "full_safe": 3,
-                "full_trunk": 1
-            }
             for money_id in cart["money"]:
-                items.append(f"  • {money_names[money_id]}")
-                total += money_prices[money_id]
+                money_info = MONEY_DATA[money_id]
+                items.append(f"  • {money_info['name']} - ${money_info['price']}")
+                total += money_info["price"]
 
         # Watches
         if cart["watches"]:
@@ -637,8 +673,9 @@ class CartView(discord.ui.View):
 
     @discord.ui.button(label='◀️ BACK', style=discord.ButtonStyle.secondary, row=1)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = PersistentSTKShopView()
-        embed = view.create_shop_embed()
+        # Always go back to personal shop since this is user-specific
+        view = PersonalSTKShopView(self.user_id)
+        embed = view.create_personal_shop_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
 # Shop selection dropdown for multi-shop system
@@ -728,6 +765,75 @@ class ShopSelectorView(discord.ui.View):
         embed = view.create_shop_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
+# Personal Shop View (user-specific)
+class PersonalSTKShopView(discord.ui.View):
+    def __init__(self, user_id):
+        super().__init__(timeout=180)
+        self.user_id = user_id
+
+    def create_personal_shop_embed(self):
+        user = bot.get_user(self.user_id)
+        if user is None:
+            # Fallback to user ID if user not in cache
+            title = f"💀 User's STK Shop 💀"
+        else:
+            title = f"💀 {user.display_name}'s STK Shop 💀"
+            
+        embed = discord.Embed(
+            title=title,
+            description="**🔥 QUALITY** • **⚡ FAST** • **💯 NO BS**",
+            color=0x39FF14
+        )
+
+        embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif?ex=68a1c8a6&is=68a07726&hm=1a990b57e6e70e8c31978e9d90aba07b1607e688f610331dddd8b42d4ccb88dd&")
+        embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif?ex=68a1c8a6&is=68a07726&hm=a73756ad78ccbf90f487df0045bc1ce19d558842ea8527d1444691fd4a29dc74&")
+
+        embed.add_field(name="🔫 WEAPONS", value="**Street arsenal** • $1-$3", inline=True)
+        embed.add_field(name="💰 MONEY", value="**Clean cash** • $1-$2", inline=True)
+        embed.add_field(name="📦 PREMIUM", value="**High-end gear** • $1+", inline=True)
+        embed.add_field(name="👑 THE CREW", value="💀 **ZPOFE** • ⚡ **DROW**", inline=False)
+        embed.add_field(name="🏆 STREET CRED", value="50+ Customers • 2-5 Min Delivery", inline=True)
+        embed.add_field(name="💼 HOW WE MOVE", value="Pick gear • Hit up connect • Get delivery", inline=True)
+
+        embed.set_footer(text="STK Supply • Personal Shop")
+        return embed
+
+    @discord.ui.button(label='🔫 WEAPONS', style=discord.ButtonStyle.danger, emoji='💥', row=1)
+    async def weapons_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = WeaponShopView(interaction.user.id)
+        embed = view.create_weapon_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    @discord.ui.button(label='💰 MONEY', style=discord.ButtonStyle.success, emoji='💵', row=1)
+    async def money_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = MoneyShopView(self.user_id)
+        embed = view.create_money_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    @discord.ui.button(label='📦 PREMIUM', style=discord.ButtonStyle.secondary, emoji='💎', row=1)
+    async def other_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = OtherShopView(self.user_id)
+        embed = view.create_other_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    @discord.ui.button(label='ℹ️ INFO', style=discord.ButtonStyle.primary, emoji='📋', row=2)
+    async def info_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = InfoView(self.user_id)
+        embed = view.create_info_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    @discord.ui.button(label='🛒 CART', style=discord.ButtonStyle.primary, emoji='🔥', row=2)
+    async def cart_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = CartView(self.user_id)
+        embed = view.create_cart_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    @discord.ui.button(label='◀️ BACK TO MAIN', style=discord.ButtonStyle.secondary, row=3)
+    async def back_to_main(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = PersistentSTKShopView()
+        embed = view.create_shop_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
+
 # Persistent STK Shop View - For setup command (no user restrictions)
 class PersistentSTKShopView(discord.ui.View):
     def __init__(self):
@@ -752,7 +858,7 @@ class PersistentSTKShopView(discord.ui.View):
 
         embed.add_field(
             name="💰 MONEY",
-            value="**Clean cash** • $1-$2\nFull bag • Full safe • Full trunk",
+            value="**Clean cash** • $1-$2\nMax money/bank • Regular & Gamepass",
             inline=True
         )
 
@@ -785,30 +891,35 @@ class PersistentSTKShopView(discord.ui.View):
 
     @discord.ui.button(label='🔫 WEAPONS', style=discord.ButtonStyle.danger, emoji='💥', row=1)
     async def weapons_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Each user gets their own weapon shop view
         view = WeaponShopView(interaction.user.id)
         embed = view.create_weapon_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
     @discord.ui.button(label='💰 MONEY', style=discord.ButtonStyle.success, emoji='💵', row=1)
     async def money_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Each user gets their own money shop view
         view = MoneyShopView(interaction.user.id)
         embed = view.create_money_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
     @discord.ui.button(label='📦 PREMIUM', style=discord.ButtonStyle.secondary, emoji='💎', row=1)
     async def other_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Each user gets their own other shop view
         view = OtherShopView(interaction.user.id)
         embed = view.create_other_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
     @discord.ui.button(label='ℹ️ INFO', style=discord.ButtonStyle.primary, emoji='📋', row=2)
     async def info_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Each user gets their own info view
         view = InfoView(interaction.user.id)
         embed = view.create_info_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
     @discord.ui.button(label='🛒 CART', style=discord.ButtonStyle.primary, emoji='🔥', row=2)
     async def cart_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Each user gets their own cart view
         view = CartView(interaction.user.id)
         embed = view.create_cart_embed()
         await interaction.response.edit_message(embed=embed, view=view)
@@ -943,7 +1054,7 @@ async def send_stk_join_embed(channel, user):
     )
 
     embed.add_field(
-        name="⏰ Tryout Time", 
+        name="⏰ Tryout Time",
         value=f"<t:{int(datetime.datetime.utcnow().timestamp())}:F>",
         inline=True
     )
@@ -969,19 +1080,16 @@ async def send_stk_join_embed(channel, user):
     ping_message = "🔔 **NEW STK TRYOUT!**\n\n"
 
     # Ping Zpofe
-    zpofe_id = 1399949855799119952
+    zpofe_id = 1385239185006268457
     ping_message += f"💀 <@{zpofe_id}> (ZPOFE)\n"
 
-    # Ping Asai (you'll need to replace with actual ID)
-    asai_id = 123456789  # Replace with actual Asai user ID
+    # Ping Asai
+    asai_id = 954818761729376357
     ping_message += f"⚡ <@{asai_id}> (ASAI)\n"
 
     # Ping Drow
-    if BotConfig.ADMIN_ROLE_ID:
-        ping_message += f"🔥 <@&{BotConfig.ADMIN_ROLE_ID}> (DROW)"
-    else:
-        drow_id = 123456789  # Replace with actual Drow user ID
-        ping_message += f"🔥 <@{drow_id}> (DROW)"
+    drow_id = 1394285950464426066
+    ping_message += f"🔥 <@{drow_id}> (DROW)"
 
     ping_message += "\n\n**SOMEONE WANTS TO JOIN STK!**\n**ALL 3 OF YOU NEED TO FIGHT THEM!**"
 
@@ -1075,20 +1183,11 @@ async def send_ticket_embed(channel, user, cart):
             weapons_list.append(WEAPON_DATA[weapon_id]['name'])
 
     # Process money with pricing
-    money_names = {
-        "full_bag": "Full Bag - $2",
-        "full_safe": "Full Safe - $3", 
-        "full_trunk": "Full Trunk - $1"
-    }
-    money_prices = {
-        "full_bag": 2,
-        "full_safe": 3,
-        "full_trunk": 1
-    }
     if cart["money"]:
         for money_id in cart["money"]:
-            money_list.append(money_names[money_id])
-            total += money_prices[money_id]
+            money_info = MONEY_DATA[money_id]
+            money_list.append(f"{money_info['name']} - ${money_info['price']}")
+            total += money_info["price"]
 
     # Process watches with pricing
     if cart["watches"]:
@@ -1099,7 +1198,7 @@ async def send_ticket_embed(channel, user, cart):
 
     # Create detailed order summary embed
     order_embed = discord.Embed(
-        title="🧾 ORDER SUMMARY",
+        title=" رپور ORDER SUMMARY",
         description=f"**Customer:** {user.mention} (`{user.id}`)\n**Order Time:** <t:{int(datetime.datetime.utcnow().timestamp())}:F>",
         color=0x00ff00,
         timestamp=datetime.datetime.utcnow()
@@ -1161,7 +1260,7 @@ async def send_ticket_embed(channel, user, cart):
     )
 
     payment_embed.add_field(
-        name="⚡ DROW'S CASHAPP", 
+        name="⚡ DROW'S CASHAPP",
         value=f"[Click here to pay Drow]({PAYMENT_METHODS['drow']['cashapp']})",
         inline=True
     )
@@ -1184,14 +1283,11 @@ async def send_ticket_embed(channel, user, cart):
 
     # Ping sellers
     ping_message = "🔔 **NEW ORDER ALERT!**\n\n"
-    zpofe_id = 1399949855799119952
+    zpofe_id = 1385239185006268457
     ping_message += f"💀 <@{zpofe_id}> (ZPOFE)\n"
 
-    if BotConfig.ADMIN_ROLE_ID:
-        ping_message += f"⚡ <@&{BotConfig.ADMIN_ROLE_ID}> (DROW)"
-    else:
-        drow_id = 123456789  # Replace with actual Drow ID
-        ping_message += f"⚡ <@{drow_id}> (DROW)"
+    drow_id = 1394285950464426066
+    ping_message += f"⚡ <@{drow_id}> (DROW)"
 
     ping_message += f"\n\n**CUSTOMER:** {user.mention}\n**TOTAL:** ${total:.2f}\n**READY FOR BUSINESS!**"
     await channel.send(ping_message)
@@ -1227,7 +1323,7 @@ async def send_delivery_tutorials(channel, cart):
 
         money_embed.add_field(
             name="📱 STEP 2: Put Item Up",
-            value="Put your **phone** or **drill** up for sale\nSet price to the amount you're buying\n*(Example: $990,000 for 990K package)*",
+            value="Put your **phone** or **drill** up for sale\nSet price to the amount you're buying\n*(Example: $990,000 for 990K or $1,600,000 for 1.6M gamepass)*",
             inline=False
         )
 
@@ -1288,7 +1384,7 @@ async def send_delivery_tutorials(channel, cart):
         weapons_embed.set_footer(text="STK Supply • Weapons Delivery")
         await channel.send(embed=weapons_embed)
 
-    # Watches tutorial  
+    # Watches tutorial
     if cart["watches"]:
         watch_embed = discord.Embed(
             title="⌚ WATCHES DELIVERY TUTORIAL",
@@ -1592,7 +1688,7 @@ class PaymentView(discord.ui.View):
         )
 
         embed.add_field(
-            name="💰 CashApp Link", 
+            name="💰 CashApp Link",
             value=f"[Click here to pay Drow]({PAYMENT_METHODS['drow']['cashapp']})",
             inline=False
         )
@@ -1697,7 +1793,7 @@ if __name__ == "__main__":
     try:
         # Add connection retries and better error handling
         import time
-        
+
         # Start HTTP server for health checks
         import threading
         from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -1741,17 +1837,17 @@ if __name__ == "__main__":
         for attempt in range(max_retries):
             try:
                 logger.info(f"Starting Discord bot (attempt {attempt + 1}/{max_retries})...")
-                
+
                 # Add delay between retries to avoid rate limiting
                 if attempt > 0:
                     logger.info(f"Waiting {retry_delay} seconds before retry...")
                     time.sleep(retry_delay)
                     retry_delay *= 2  # Exponential backoff
-                
+
                 # Start Discord bot
                 bot.run(BotConfig.get_bot_token(), reconnect=True)
                 break
-                
+
             except discord.HTTPException as e:
                 if "429" in str(e) or "rate limit" in str(e).lower():
                     logger.error(f"Rate limited. Attempt {attempt + 1} failed: {e}")
@@ -1769,7 +1865,7 @@ if __name__ == "__main__":
 
         logger.error("All connection attempts failed")
         print("❌ Bot failed to start after all retries. Check your bot token and try again later.")
-        
+
     except Exception as e:
         logger.error(f"Critical error: {e}")
         print("❌ Bot failed to start. Check your configuration.")
