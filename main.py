@@ -73,6 +73,9 @@ class ShopBot(commands.Bot):
         # Start cool status rotation
         self.status_task = asyncio.create_task(self.rotate_status())
 
+        # Send auto-welcome message to specific channel
+        await self.send_auto_welcome_message()
+
     async def rotate_status(self):
         """Rotate through cool status messages"""
         statuses = [
@@ -87,21 +90,21 @@ class ShopBot(commands.Bot):
             {"activity": discord.Activity(type=discord.ActivityType.watching, name="📦 Fresh Inventory 📦"), "status": discord.Status.online},
             {"activity": discord.Game(name="⚔️ Elite STK Gang ⚔️"), "status": discord.Status.idle},
         ]
-        
+
         while not self.is_closed():
             try:
                 for status_info in statuses:
                     if self.is_closed():
                         break
-                    
+
                     await self.change_presence(
                         activity=status_info["activity"],
                         status=status_info["status"]
                     )
-                    
+
                     # Wait 30 seconds before changing to next status
                     await asyncio.sleep(30)
-                    
+
             except Exception as e:
                 logger.error(f"Error updating status: {e}")
                 await asyncio.sleep(60)  # Wait longer if there's an error
@@ -125,83 +128,84 @@ class ShopBot(commands.Bot):
         logger.error(f"Bot error in {event}: {args}")
 
     async def on_member_join(self, member):
-        """Handle new member join - assign auto-role for unverified users"""
+        """Handle new member join"""
         try:
             # Auto-add to directory
             auto_detect_members(member.guild)
-            
-            # Role IDs for verification system
-            AUTO_ROLE_ID = 1406380208507977899  # Unverified role
-            VERIFIED_ROLE_ID = 1399949469532946483  # Verified role
-            VERIFICATION_CHANNEL_ID = 1398741781331447890  # Verification channel
-            
-            # Check if user already has verified role (shouldn't happen for new joins)
-            verified_role = member.guild.get_role(VERIFIED_ROLE_ID)
-            if verified_role and verified_role in member.roles:
-                logger.info(f"{member.display_name} already verified, skipping auto-role")
-                return
-            
-            # Assign auto-role to new member (unverified users get this role)
+
+            # Assign role to new member
+            role_id = 1406402417863430204
             try:
-                auto_role = member.guild.get_role(AUTO_ROLE_ID)
-                if auto_role:
-                    await member.add_roles(auto_role, reason="Auto-assigned unverified role on join")
-                    logger.info(f"Assigned auto-role to {member.display_name} - they need to verify")
-                    
-                    # Wait a moment for role to be applied
-                    await asyncio.sleep(1)
+                role = member.guild.get_role(role_id)
+                if role:
+                    await member.add_roles(role)
+                    logger.info(f"Assigned role {role.name} to {member.display_name}")
                 else:
-                    logger.error(f"Auto-role {AUTO_ROLE_ID} not found in guild")
+                    logger.error(f"Role with ID {role_id} not found in guild {member.guild.name}")
             except Exception as e:
-                logger.error(f"Failed to assign auto-role to {member.display_name}: {e}")
-            
-            # Get verification channel
-            verification_channel = member.guild.get_channel(VERIFICATION_CHANNEL_ID)
-            if not verification_channel:
-                logger.error(f"Verification channel {VERIFICATION_CHANNEL_ID} not found")
-                return
-            
-            # Create welcome embed with verification focus
+                logger.error(f"Failed to assign role to {member.display_name}: {e}")
+
+            # Create welcome embed
             embed = discord.Embed(
-                title="🔥 WELCOME TO STK 🔥",
-                description=f"**{member.mention} - You must verify to access the server!**",
+                title="💀 WELCOME TO STK (SHOOT TO KILL) 💀",
+                description=f"**YO {member.mention} WELCOME TO THE FAMILY!**",
                 color=0xFF0000,
                 timestamp=datetime.datetime.now(datetime.timezone.utc)
             )
-            
+
             embed.add_field(
-                name="⚠️ MANDATORY VERIFICATION",
-                value=f"**Click the VERIFY button in {verification_channel.mention}**\n\nYou can only see this channel until you verify!",
+                name="🔥 THIS IS STK 🔥",
+                value="**THE BEST SERVICES AND MOST FEARED GANG OUT IN THE STREETS ON THA BRONX 3**\n\nWe support ALL services for Tha Bronx 3 and more to come soon!",
                 inline=False
             )
-            
+
             embed.add_field(
-                name="🚨 IMPORTANT",
-                value="• Verification is **REQUIRED**\n• No verification = No access to other channels\n• Click verify to unlock everything",
+                name="🎯 What We About",
+                value="💀 **ELITE SERVICES**\n🔫 **STREET REPUTATION** \n💰 **NO BS BUSINESS**\n⚡ **24/7 GRINDING**",
+                inline=True
+            )
+
+            embed.add_field(
+                name="📍 Our Territory",
+                value="🏙️ **THA BRONX 3**\n🌍 **EXPANDING SOON**\n💯 **WORLDWIDE CONNECT**",
+                inline=True
+            )
+
+            embed.add_field(
+                name="🙏 THANK YOU FOR JOINING!",
+                value="**Welcome to the most elite operation in the game. Let's get this money!**",
                 inline=False
             )
-            
+
             embed.set_thumbnail(url=member.display_avatar.url)
-            embed.set_footer(text="STK Supply • Verification Required", icon_url=member.guild.me.display_avatar.url)
-            
-            # Send welcome message to verification channel
-            try:
-                await verification_channel.send(f"{member.mention}", embed=embed)
-                logger.info(f"Sent verification message for {member.display_name}")
-            except Exception as e:
-                logger.error(f"Failed to send verification message: {e}")
-                
-            logger.info(f"New member joined: {member.display_name} ({member.id}) - Auto-role assigned, needs verification")
-            
+            embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif")
+            embed.set_footer(text="STK (Shoot to Kill) • Most Feared Gang • Welcome to the streets", icon_url=member.guild.me.display_avatar.url)
+
+            # Send welcome message to general channel or first available channel
+            welcome_channel = None
+            for channel in member.guild.text_channels:
+                if channel.name.lower() in ['general', 'welcome', 'chat']:
+                    welcome_channel = channel
+                    break
+
+            if not welcome_channel:
+                welcome_channel = member.guild.text_channels[0] if member.guild.text_channels else None
+
+            if welcome_channel:
+                try:
+                    await welcome_channel.send(f"{member.mention} **JUST JOINED THE GANG!** 💀🔥", embed=embed)
+                    logger.info(f"Sent welcome message for {member.display_name}")
+                except Exception as e:
+                    logger.error(f"Failed to send welcome message: {e}")
+
+            logger.info(f"New member joined: {member.display_name} ({member.id})")
+
         except Exception as e:
             logger.error(f"Error in member join event: {e}")
 
     async def on_ready(self):
         logger.info(f'{self.user} has connected to Discord!')
         logger.info(f'Bot is in {len(self.guilds)} guilds')
-
-        # Auto-assign unverified role to existing members without verified role
-        await self.auto_assign_unverified_roles()
 
         # Test database connection
         try:
@@ -231,74 +235,179 @@ class ShopBot(commands.Bot):
         # Start cool status rotation
         self.status_task = asyncio.create_task(self.rotate_status())
 
-    async def auto_assign_unverified_roles(self):
-        """Auto-assign unverified role to existing members who don't have verified role"""
-        try:
-            AUTO_ROLE_ID = 1406380208507977899  # Unverified role
-            VERIFIED_ROLE_ID = 1399949469532946483  # Verified role
-            
-            assigned_count = 0
-            for guild in self.guilds:
-                auto_role = guild.get_role(AUTO_ROLE_ID)
-                verified_role = guild.get_role(VERIFIED_ROLE_ID)
-                
-                if not auto_role or not verified_role:
-                    logger.error(f"Missing roles in guild {guild.name}")
-                    continue
-                
-                for member in guild.members:
-                    if member.bot:
-                        continue
-                    
-                    # If member doesn't have verified role and doesn't have auto role, give them auto role
-                    if verified_role not in member.roles and auto_role not in member.roles:
-                        try:
-                            await member.add_roles(auto_role, reason="Auto-assigned unverified role - needs verification")
-                            assigned_count += 1
-                            logger.info(f"Auto-assigned unverified role to {member.display_name}")
-                            await asyncio.sleep(0.5)  # Rate limit protection
-                        except Exception as e:
-                            logger.error(f"Failed to assign auto-role to {member.display_name}: {e}")
-            
-            if assigned_count > 0:
-                logger.info(f"Auto-assigned unverified role to {assigned_count} existing members")
-                
-        except Exception as e:
-            logger.error(f"Error in auto_assign_unverified_roles: {e}")
+        # Send auto-welcome message to specific channel
+        await self.send_auto_welcome_message()
 
-    async def on_member_remove(self, member):
-        """Cool member leave message"""
+
+    async def on_member_ban(self, guild, user):
+        """Handle member ban with STK-style message"""
         try:
+            ban_messages = [
+                f"⚔️ **{user.display_name}** GOT THE FUCKING HAMMER! ⚔️",
+                f"🔨 **{user.display_name}** BANNED FOR BEING A FUCKING LOSER! 🔨",
+                f"💀 **{user.display_name}** VIOLATED THE CODE AND GOT MURKED! 💀",
+                f"🗑️ **{user.display_name}** TOOK OUT THE FUCKING TRASH! 🗑️",
+                f"⚖️ **{user.display_name}** FACED STK JUSTICE AND LOST! ⚖️"
+            ]
+
+            import random
+            selected_message = random.choice(ban_messages)
+
             embed = discord.Embed(
-                title="💨 MEMBER LEFT",
-                description=f"**{member.display_name}** left the server",
-                color=0xFF0000,
+                title="🔨 STK JUSTICE SERVED 🔨",
+                description=selected_message,
+                color=0x000000,
                 timestamp=datetime.datetime.now(datetime.timezone.utc)
             )
-            
+
             embed.add_field(
-                name="📊 Stats",
-                value=f"**Members:** {len(member.guild.members)}\n**Joined:** <t:{int(member.joined_at.timestamp())}:R>",
+                name="⚖️ COURT IS IN SESSION",
+                value="**VERDICT: GUILTY AS FUCK**\n**SENTENCE: BANNED FOR LIFE**\n\nDon't fuck with STK! 💀",
+                inline=False
+            )
+
+            embed.add_field(
+                name="🚨 WARNING TO OTHERS",
+                value="**THIS IS WHAT HAPPENS WHEN YOU DISRESPECT STK**\n\nStay in line or get the same treatment! 🔥",
+                inline=False
+            )
+
+            embed.set_thumbnail(url=user.display_avatar.url)
+            embed.set_footer(text="STK (Shoot to Kill) • Justice System • Don't Test Us", icon_url=guild.me.display_avatar.url)
+
+            # Send to general channel
+            log_channel = None
+            for channel in guild.text_channels:
+                if channel.name.lower() in ['general', 'logs', 'chat', 'welcome']:
+                    log_channel = channel
+                    break
+
+            if log_channel:
+                await log_channel.send("🚨 **STK JUSTICE ALERT** 🚨", embed=embed)
+
+            logger.info(f"Member banned: {user.display_name} ({user.id})")
+
+        except Exception as e:
+            logger.error(f"Error in member ban event: {e}")
+
+    async def on_member_remove(self, member):
+        """Aggressive member leave message - STK style"""
+        try:
+            # Random aggressive messages for different scenarios
+            leave_messages = [
+                f"💀 **{member.display_name}** COULDN'T HANDLE THE HEAT AND DIPPED! 💀",
+                f"🗑️ **{member.display_name}** TOOK THE TRASH OUT THEMSELVES! 🗑️", 
+                f"🤡 **{member.display_name}** WAS TOO SOFT FOR STK! 🤡",
+                f"👋 **{member.display_name}** LEFT CRYING! BYE BYE! 👋",
+                f"💸 **{member.display_name}** COULDN'T AFFORD THE LIFESTYLE! 💸",
+                f"😂 **{member.display_name}** RAN AWAY LIKE A LITTLE BITCH! 😂"
+            ]
+
+            import random
+            selected_message = random.choice(leave_messages)
+
+            embed = discord.Embed(
+                title="🚮 ANOTHER ONE BITES THE DUST 🚮",
+                description=selected_message,
+                color=0x8B0000,
+                timestamp=datetime.datetime.now(datetime.timezone.utc)
+            )
+
+            embed.add_field(
+                name="💀 STK DON'T NEED WEAK LINKS",
+                value="**ONLY THE STRONGEST SURVIVE IN OUR GANG**\n\nThey probably went crying to their mommy! 😭",
+                inline=False
+            )
+
+            embed.add_field(
+                name="📊 Gang Stats",
+                value=f"**Real Members Left:** {len(member.guild.members)}\n**They Joined:** <t:{int(member.joined_at.timestamp() if member.joined_at else 0)}:R>\n**Lasted:** Not long enough! 💀",
                 inline=True
             )
-            
+
+            embed.add_field(
+                name="🔥 Message to Leavers",
+                value="**DON'T COME BACK UNLESS YOU CAN HANDLE THE STREETS!**\n\nSTK is for REAL ONES ONLY! 💯",
+                inline=False
+            )
+
             embed.set_thumbnail(url=member.display_avatar.url)
-            embed.set_footer(text="STK Supply • Member departed")
-            
+            embed.set_image(url="https://media.tenor.com/images/trash-can.gif")
+            embed.set_footer(text="STK (Shoot to Kill) • We Don't Miss The Weak", icon_url=member.guild.me.display_avatar.url)
+
             # Send to general channel
             log_channel = None
             for channel in member.guild.text_channels:
-                if channel.name.lower() in ['general', 'logs', 'chat']:
+                if channel.name.lower() in ['general', 'logs', 'chat', 'welcome']:
                     log_channel = channel
                     break
-            
+
             if log_channel:
-                await log_channel.send(embed=embed)
-                
+                await log_channel.send("**BREAKING NEWS:** 🗞️", embed=embed)
+
             logger.info(f"Member left: {member.display_name} ({member.id})")
-            
+
         except Exception as e:
             logger.error(f"Error in member remove event: {e}")
+
+    async def send_auto_welcome_message(self):
+        """Sends an automated welcome message to a specific channel."""
+        channel_id = 1398741781331447890  # Target channel ID
+
+        for guild in self.guilds:
+            channel = guild.get_channel(channel_id)
+            if channel and isinstance(channel, discord.TextChannel):
+                try:
+                    embed = discord.Embed(
+                        title="💀 STK (SHOOT TO KILL) 💀",
+                        description="**WELCOME TO THE MOST FEARED GANG IN THE STREETS**",
+                        color=0xFF0000,
+                        timestamp=datetime.datetime.now(datetime.timezone.utc)
+                    )
+                    
+                    embed.add_field(
+                        name="🏙️ WHO WE ARE",
+                        value="**STK (Shoot to Kill)** is the most feared and respected gang operating in Tha Bronx 3. We provide the best services and maintain our reputation through elite operations and unmatched street credibility.",
+                        inline=False
+                    )
+
+                    embed.add_field(
+                        name="👑 OUR LEADERSHIP",
+                        value="💎 **ZPOFE** - Chief Architect & Elite Developer\n⚡ **ASAI** - Operations General\n🔥 **DROW** - Multi-Role Elite\n👏 **TOP SMACKA** - Elite Operator",
+                        inline=True
+                    )
+
+                    embed.add_field(
+                        name="🎯 WHAT WE DO",
+                        value="• Premium street services\n• Elite operations\n• Territory expansion\n• 24/7 business operations\n• Most trusted connects in the game",
+                        inline=True
+                    )
+
+                    embed.add_field(
+                        name="📍 OUR TERRITORY",
+                        value="🏙️ **Primary:** Tha Bronx 3\n🌍 **Expanding:** New territories coming soon\n💯 **Reputation:** 50+ satisfied customers\n⚡ **Response Time:** 2-5 minutes",
+                        inline=False
+                    )
+
+                    embed.add_field(
+                        name="💀 THE STK CODE",
+                        value="**Respect the gang • No weak shit allowed • Business first • Elite members only**\n\nWe don't just run the streets, we own them. Welcome to STK territory.",
+                        inline=False
+                    )
+
+                    embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif")
+                    embed.set_footer(text="STK (Shoot to Kill) • Most Feared Gang • Welcome to Our Territory", icon_url=guild.me.display_avatar.url)
+                    
+                    await channel.send("🚨 **STK TERRITORY** 🚨", embed=embed)
+                    logger.info(f"Sent auto-welcome message to channel {channel.name} ({channel_id}) in guild {guild.name}.")
+                except discord.Forbidden:
+                    logger.error(f"Missing permissions to send message in channel {channel_id} in guild {guild.name}.")
+                except Exception as e:
+                    logger.error(f"Failed to send auto-welcome message to channel {channel_id} in guild {guild.name}: {e}")
+            elif channel and not isinstance(channel, discord.TextChannel):
+                logger.warning(f"Channel ID {channel_id} in guild {guild.name} is not a text channel.")
+            # If channel is None, it means the bot isn't in that guild or the channel doesn't exist.
+            # No specific error needed here as it's a normal case for the bot to not be in all guilds.
 
 # Create bot instance
 bot = ShopBot()
@@ -322,28 +431,16 @@ CUSTOMER_ROLE_ID = 1405942363721044199
 
 # STK Directory Data - Updated for 2025
 STK_DIRECTORY = {
-    "king_slime": {
-        "user_id": 954818761729376357,
-        "rank": "🐍 King Slime 🐍",
-        "role": "Leader",
-        "description": "Supreme leader of STK operations",
-        "specialties": ["Leadership", "Strategy", "Operations"],
-        "status": "Active",
-        "joined": "2025",
-        "achievements": ["Founded STK", "50+ Operations", "Elite Status"],
-        "color": 0xFFD700,
-        "card_image": "https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif"
-    },
     "zpofe": {
         "user_id": 1385239185006268457,
-        "rank": "🪖 General 🪖",
-        "role": "Main Connect & Developer",
-        "description": "Lead developer and primary connection for all services",
-        "specialties": ["Development", "Connections", "Customer Service"],
-        "status": "Active",
-        "joined": "2025",
-        "achievements": ["3+ Years Experience", "Bot Developer", "Top Seller"],
-        "color": 0xFF0000,
+        "rank": "💎 𝗖𝗛𝗜𝗘𝗙 𝗔𝗥𝗖𝗛𝗜𝗧𝗘𝗖𝗧 💎 | ⚡ 𝗘𝗟𝗜𝗧𝗘 𝗗𝗘𝗩 ⚡",
+        "role": "𝘊𝘰𝘥𝘦 𝘔𝘢𝘴𝘵𝘦𝘳 & 𝘚𝘶𝘱𝘳𝘦𝘮𝘦 𝘊𝘰𝘯𝘯𝘦𝘤𝘵",
+        "description": "🧠 Mastermind architect of STK's digital empire • 🚀 Revolutionary code wizard transforming the streets into cyber supremacy • 💀 The brain behind every operation",
+        "specialties": ["🔥 Advanced Python Architecture", "⚡ Discord Bot Mastery", "💎 Premium UI/UX Design", "🚀 System Optimization", "💰 Revenue Generation", "🛡️ Security Systems"],
+        "status": "🟢 Dominating",
+        "joined": "2024",
+        "achievements": ["👑 Lead System Architect", "🏆 Top Revenue Generator", "💻 Master Full-Stack Developer", "🎨 Elite UI/UX Designer", "⚡ Speed Coding Champion", "💎 Premium Service Creator", "🔥 50+ Satisfied Customers", "🚀 Innovation Pioneer", "🛡️ Security Expert", "💰 Million Dollar Mind"],
+        "color": 0x00FFFF,
         "card_image": "https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif"
     },
     "asai": {
@@ -1858,150 +1955,24 @@ async def send_delivery_tutorials(channel, cart):
         watch_embed.set_footer(text="STK Supply • Watch Delivery")
         await channel.send(embed=watch_embed)
 
-# Verification Button View
-class VerificationView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
 
-    @discord.ui.button(label='✅ VERIFY', style=discord.ButtonStyle.success, custom_id='verify_user', emoji='🔓')
-    async def verify_user(self, interaction: discord.Interaction, button: discord.ui.Button):
-        try:
-            AUTO_ROLE_ID = 1406380208507977899  # Unverified role
-            VERIFIED_ROLE_ID = 1399949469532946483  # Verified role
-            
-            auto_role = interaction.guild.get_role(AUTO_ROLE_ID)
-            verified_role = interaction.guild.get_role(VERIFIED_ROLE_ID)
-            
-            if not verified_role:
-                await interaction.response.send_message("❌ Verified role not found! Contact an admin.", ephemeral=True)
-                return
-            
-            # Check if user already verified
-            if verified_role in interaction.user.roles:
-                await interaction.response.send_message("✅ You're already verified! You have access to all channels.", ephemeral=True)
-                return
-            
-            # Remove auto-role and add verified role
-            roles_to_remove = []
-            roles_to_add = [verified_role]
-            
-            if auto_role and auto_role in interaction.user.roles:
-                roles_to_remove.append(auto_role)
-            
-            # Remove unverified role
-            if roles_to_remove:
-                await interaction.user.remove_roles(*roles_to_remove, reason="User verified - removing unverified role")
-            
-            # Add verified role
-            await interaction.user.add_roles(*roles_to_add, reason="User completed verification")
-            
-            # Create success embed
-            embed = discord.Embed(
-                title="✅ VERIFICATION COMPLETE!",
-                description="**Welcome to STK Supply!**\n\nYou now have access to all channels in the server.",
-                color=0x00FF00,
-                timestamp=datetime.datetime.now(datetime.timezone.utc)
-            )
-            
-            embed.add_field(
-                name="🎉 Access Granted",
-                value="• All text channels unlocked\n• All voice channels available\n• Full server access enabled",
-                inline=False
-            )
-            
-            embed.add_field(
-                name="🔥 What's Next?",
-                value="• Check out the shop for services\n• Read server rules and info\n• Join the community!",
-                inline=False
-            )
-            
-            embed.set_thumbnail(url=interaction.user.display_avatar.url)
-            embed.set_footer(text="STK Supply • Successfully Verified", icon_url=interaction.guild.me.display_avatar.url)
-            
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            logger.info(f"User {interaction.user.display_name} ({interaction.user.id}) successfully verified")
-            
-        except Exception as e:
-            logger.error(f"Error in verification: {e}")
-            await interaction.response.send_message("❌ Verification failed. Please contact an admin.", ephemeral=True)
 
-# Setup verification system command
-@bot.tree.command(name="setup_verification_system", description="Setup the verification system with button")
-async def setup_verification_system(interaction: discord.Interaction):
-    """Setup the verification system"""
-    try:
-        # Check permissions
-        has_permission = False
-        if interaction.user.guild_permissions.manage_channels:
-            has_permission = True
-        elif BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
-            has_permission = True
 
-        if not has_permission:
-            await interaction.response.send_message("❌ You need admin permissions.", ephemeral=True)
-            return
 
-        await interaction.response.send_message("🔄 Setting up verification system...", ephemeral=True)
-
-        # Create verification embed
-        embed = discord.Embed(
-            title="🔓 SERVER VERIFICATION",
-            description="**Click the button below to verify and gain access to all channels!**",
-            color=0x39FF14,
-            timestamp=datetime.datetime.now(datetime.timezone.utc)
-        )
-
-        embed.add_field(
-            name="⚠️ Verification Required",
-            value="You must verify to access other channels in this server.\nThis is a one-time process.",
-            inline=False
-        )
-
-        embed.add_field(
-            name="✅ After Verification",
-            value="• Access to all text channels\n• Access to all voice channels\n• Full server participation\n• Shop and services access",
-            inline=False
-        )
-
-        embed.add_field(
-            name="🔒 Current Access",
-            value="Until you verify, you can only see this channel.",
-            inline=False
-        )
-
-        embed.set_footer(text="STK Supply • Verification System", icon_url=interaction.guild.me.display_avatar.url)
-
-        # Create the view with verification button
-        view = VerificationView()
-        
-        # Send the verification message
-        await interaction.channel.send(embed=embed, view=view)
-        await interaction.edit_original_response(content="✅ **Verification system setup complete!**")
-
-    except Exception as e:
-        logger.error(f"Error in setup_verification_system command: {e}")
-        try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
-            else:
-                await interaction.edit_original_response(content="❌ Some shit went wrong.")
-        except discord.NotFound:
-            logger.error("Could not send error message")
+# Admin check function
+def is_admin(user: discord.Member) -> bool:
+    """Check if user is an admin"""
+    admin_ids = [954818761729376357, 1385239185006268457, 666394721039417346, 1394285950464426066, 1106038406317871184]
+    return user.id in admin_ids or user.guild_permissions.administrator
 
 # Setup shop command
-@bot.tree.command(name="setup", description="Setup the STK Shop")
+@bot.tree.command(name="setup", description="Setup the STK Shop - ADMIN ONLY")
 async def setup_shop(interaction: discord.Interaction):
     """Setup the STK Shop interface"""
     try:
-        # Check permissions
-        has_permission = False
-        if interaction.user.guild_permissions.manage_channels:
-            has_permission = True
-        elif BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
-            has_permission = True
-
-        if not has_permission:
-            await interaction.response.send_message("❌ You need admin permissions.", ephemeral=True)
+        # Check if user is admin
+        if not is_admin(interaction.user):
+            await interaction.response.send_message("❌ This command is restricted to STK admins only.", ephemeral=True)
             return
 
         await interaction.response.send_message("🔄 Setting up STK Supply...", ephemeral=True)
@@ -2114,7 +2085,7 @@ class BanModal(discord.ui.Modal):
         try:
             target_member = interaction.guild.get_member(self.target_user_id)
             target_user = await bot.fetch_user(self.target_user_id)
-            
+
             if not target_user:
                 await interaction.response.send_message("User not found.", ephemeral=True)
                 return
@@ -2177,7 +2148,7 @@ class TimeoutModal(discord.ui.Modal):
 
             # Calculate timeout until datetime
             timeout_until = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=duration_minutes)
-            
+
             reason = f"Timed out by {interaction.user.display_name}: {self.reason.value}"
             await target_member.timeout(timeout_until, reason=reason)
 
@@ -2228,7 +2199,7 @@ class RewardModal(discord.ui.Modal):
             # Auto-detect members and get user's card
             auto_detect_members(interaction.guild)
             member_key = get_user_card_key(self.target_user_id)
-            
+
             # Add achievement to user's card
             achievement_text = self.achievement.value
             if self.description.value:
@@ -2510,7 +2481,7 @@ class CardEditView(discord.ui.View):
             return
 
         current_achievements = STK_DIRECTORY[self.member_key].get("achievements", [])
-        
+
         embed = discord.Embed(
             title="🏆 Your Achievements",
             description="**Achievements are awarded by admins only**",
@@ -2591,7 +2562,7 @@ class CardEditView(discord.ui.View):
         # Specialties
         embed.add_field(
             name="🎯 Specialties",
-            value="\n".join([f"• {specialty}" for specialty in member_data['specialties']]),
+            value="\n".join([f"• {specialty}" for specialty in member_data['specialties']]) if member_data['specialties'] else "No specialties listed",
             inline=True
         )
 
@@ -2747,11 +2718,16 @@ def get_user_card_key(user_id: int) -> str:
     return member_key
 
 # User directory command - shows Discord members only
-@bot.tree.command(name="user", description="Display user profile card")
+@bot.tree.command(name="user", description="Display user profile card - ADMIN ONLY")
 @app_commands.describe(user="Select a Discord user to view their profile (optional - defaults to your own card)")
 async def user_directory(interaction: discord.Interaction, user: discord.Member = None):
     """Display user profile card"""
     try:
+        # Check if user is admin
+        if not is_admin(interaction.user):
+            await interaction.response.send_message("❌ This command is restricted to STK admins only.", ephemeral=True)
+            return
+
         # Check if interaction is already responded to or expired
         if interaction.response.is_done():
             return
@@ -2894,10 +2870,14 @@ class AdminManagementView(discord.ui.View):
 
 
 # Edit Card Command - Users can only edit their own card
-@bot.tree.command(name="editcard", description="Edit your STK member directory card")
+@bot.tree.command(name="editcard", description="Edit your STK member directory card - ADMIN ONLY")
 async def edit_card(interaction: discord.Interaction):
     """Edit your own STK member directory card"""
     try:
+        # Check if user is admin
+        if not is_admin(interaction.user):
+            await interaction.response.send_message("❌ This command is restricted to STK admins only.", ephemeral=True)
+            return
         # Auto-detect members when command is used
         auto_detect_members(interaction.guild)
 
@@ -2949,19 +2929,13 @@ async def edit_card(interaction: discord.Interaction):
 
 
 # Setup STK Join command
-@bot.tree.command(name="setup_stkjoin", description="Setup the STK Join system")
+@bot.tree.command(name="setup_stkjoin", description="Setup the STK Join system - ADMIN ONLY")
 async def setup_stk_join(interaction: discord.Interaction):
     """Setup the STK Join interface"""
     try:
-        # Check permissions
-        has_permission = False
-        if interaction.user.guild_permissions.manage_channels:
-            has_permission = True
-        elif BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
-            has_permission = True
-
-        if not has_permission:
-            await interaction.response.send_message("❌ You need admin permissions.", ephemeral=True)
+        # Check if user is admin
+        if not is_admin(interaction.user):
+            await interaction.response.send_message("❌ This command is restricted to STK admins only.", ephemeral=True)
             return
 
         await interaction.response.send_message("🔄 Setting up STK Join...", ephemeral=True)
@@ -3059,7 +3033,7 @@ class STKTryoutManagementView(discord.ui.View):
         except:
             pass
 
-@bot.tree.command(name="clear", description="Delete bot messages from this channel")
+@bot.tree.command(name="clear", description="Delete bot messages from this channel - ADMIN ONLY")
 @app_commands.describe(
     amount="Number of bot messages to delete (default: 10, max: 100)"
 )
@@ -3071,15 +3045,9 @@ async def clear_messages(interaction: discord.Interaction, amount: int = 10):
         elif amount < 1:
             amount = 1
 
-        # Check permissions
-        has_permission = False
-        if interaction.user.guild_permissions.manage_messages:
-            has_permission = True
-        elif BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
-            has_permission = True
-
-        if not has_permission:
-            await interaction.response.send_message("❌ You need admin permissions.", ephemeral=True)
+        # Check if user is admin
+        if not is_admin(interaction.user):
+            await interaction.response.send_message("❌ This command is restricted to STK admins only.", ephemeral=True)
             return
 
         await interaction.response.send_message(f"🧹 Clearing up to {amount} messages...", ephemeral=True)
@@ -3234,237 +3202,18 @@ class TicketManagementView(discord.ui.View):
 
 
 
-# Bot bio command - shows cool STK information
-@bot.tree.command(name="fixperms", description="Fix member channel permissions (admin only)")
-async def fix_permissions(interaction: discord.Interaction):
-    """Fix member channel permissions"""
-    try:
-        # Check permissions
-        has_permission = False
-        if interaction.user.guild_permissions.manage_channels:
-            has_permission = True
-        elif BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
-            has_permission = True
 
-        if not has_permission:
-            await interaction.response.send_message("❌ You need admin permissions.", ephemeral=True)
-            return
 
-        await interaction.response.send_message("🔧 Checking member permissions...", ephemeral=True)
 
-        AUTO_ROLE_ID = 1406380208507977899  # Unverified role
-        VERIFIED_ROLE_ID = 1399949469532946483  # Verified role
-        
-        auto_role = interaction.guild.get_role(AUTO_ROLE_ID)
-        verified_role = interaction.guild.get_role(VERIFIED_ROLE_ID)
-        
-        if not auto_role:
-            await interaction.edit_original_response(content="❌ Unverified role not found! Create role with ID 1406380208507977899")
-            return
 
-        if not verified_role:
-            await interaction.edit_original_response(content="❌ Verified role not found! Create role with ID 1399949469532946483")
-            return
-
-        # Check members who need unverified role (don't have verified role and don't have auto role)
-        members_fixed = 0
-        for member in interaction.guild.members:
-            if member.bot:
-                continue
-            
-            # If member doesn't have verified role and doesn't have auto role, give them auto role
-            if verified_role not in member.roles and auto_role not in member.roles:
-                try:
-                    await member.add_roles(auto_role, reason="Fixed missing unverified role - needs verification")
-                    members_fixed += 1
-                    await asyncio.sleep(0.5)  # Rate limit protection
-                except Exception as e:
-                    logger.error(f"Failed to assign role to {member.display_name}: {e}")
-
-        embed = discord.Embed(
-            title="✅ PERMISSIONS FIXED",
-            description=f"**Fixed {members_fixed} members**",
-            color=0x00FF00
-        )
-
-        embed.add_field(
-            name="🔧 Actions Taken",
-            value=f"• Added unverified role to {members_fixed} members who need to verify\n• Unverified Role: {auto_role.name}\n• Verified Role: {verified_role.name}\n• Members with unverified role can only see verification channel",
-            inline=False
-        )
-
-        embed.add_field(
-            name="ℹ️ Verification System",
-            value="• Members without verified role get unverified role\n• Unverified members can only see verification channel\n• They must click verify button to get full access\n• Verified members see all channels",
-            inline=False
-        )
-
-        await interaction.edit_original_response(content="", embed=embed)
-        logger.info(f"Fixed permissions for {members_fixed} members")
-
-    except Exception as e:
-        logger.error(f"Error in fix_permissions command: {e}")
-        if not interaction.response.is_done():
-            await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
-        else:
-            await interaction.edit_original_response(content="❌ Some shit went wrong.")
-
-@bot.tree.command(name="setup_verification", description="Configure server so unverified users only see verification channel (admin only)")
-async def setup_verification(interaction: discord.Interaction):
-    """Configure server permissions so unverified users only see verification channel"""
-    try:
-        # Check permissions
-        has_permission = False
-        if interaction.user.guild_permissions.manage_channels:
-            has_permission = True
-        elif BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
-            has_permission = True
-
-        if not has_permission:
-            await interaction.response.send_message("❌ You need admin permissions.", ephemeral=True)
-            return
-
-        await interaction.response.send_message("🔄 Setting up verification-only permissions...", ephemeral=True)
-
-        guild = interaction.guild
-        VERIFICATION_CHANNEL_ID = 1398741781331447890  # Verification channel
-        AUTO_ROLE_ID = 1406380208507977899  # Unverified role (can only see verification channel)
-        VERIFIED_ROLE_ID = 1399949469532946483  # Verified role (can see all channels)
-        
-        verification_channel = guild.get_channel(VERIFICATION_CHANNEL_ID)
-        auto_role = guild.get_role(AUTO_ROLE_ID)
-        verified_role = guild.get_role(VERIFIED_ROLE_ID)
-        
-        if not verification_channel:
-            await interaction.edit_original_response(content="❌ Verification channel not found! Check channel ID 1398741781331447890")
-            return
-            
-        if not auto_role:
-            await interaction.edit_original_response(content="❌ Unverified role not found! Create role with ID 1406380208507977899")
-            return
-
-        if not verified_role:
-            await interaction.edit_original_response(content="❌ Verified role not found! Create role with ID 1399949469532946483")
-            return
-
-        changes_made = 0
-        errors = []
-
-        # Step 1: Set @everyone to see ONLY verification channel
-        try:
-            # Remove @everyone from seeing all other channels except verification
-            for channel in guild.text_channels:
-                if channel.id != VERIFICATION_CHANNEL_ID:
-                    # Deny @everyone from seeing other channels
-                    await channel.set_permissions(guild.default_role, read_messages=False, reason="Verification setup - hide from unverified")
-                    changes_made += 1
-                    await asyncio.sleep(0.1)  # Rate limit protection
-                else:
-                    # Allow @everyone to see verification channel
-                    await channel.set_permissions(guild.default_role, read_messages=True, send_messages=True, reason="Verification setup - allow verification channel")
-                    changes_made += 1
-
-            # Do the same for voice channels
-            for channel in guild.voice_channels:
-                await channel.set_permissions(guild.default_role, view_channel=False, reason="Verification setup - hide voice from unverified")
-                changes_made += 1
-                await asyncio.sleep(0.1)
-
-        except Exception as e:
-            errors.append(f"Channel permissions: {str(e)[:100]}")
-
-        # Step 2: Set auto-role (unverified) to ONLY see verification channel
-        try:
-            for channel in guild.text_channels:
-                if channel.id != VERIFICATION_CHANNEL_ID:
-                    # Deny auto-role (unverified users) from seeing other channels
-                    await channel.set_permissions(auto_role, read_messages=False, reason="Verification setup - unverified users only see verification")
-                    await asyncio.sleep(0.1)
-                else:
-                    # Allow auto-role to see verification channel
-                    await channel.set_permissions(auto_role, read_messages=True, send_messages=True, reason="Verification setup - allow verification channel")
-                    
-            for channel in guild.voice_channels:
-                await channel.set_permissions(auto_role, view_channel=False, reason="Verification setup - unverified users no voice access")
-                await asyncio.sleep(0.1)
-
-        except Exception as e:
-            errors.append(f"Auto-role permissions: {str(e)[:100]}")
-
-        # Step 3: Set verified role to see all channels
-        try:
-            for channel in guild.text_channels:
-                # Allow verified role to see all channels
-                await channel.set_permissions(verified_role, read_messages=True, reason="Verification setup - verified users see all")
-                await asyncio.sleep(0.1)
-                    
-            for channel in guild.voice_channels:
-                await channel.set_permissions(verified_role, view_channel=True, reason="Verification setup - verified users voice access")
-                await asyncio.sleep(0.1)
-
-        except Exception as e:
-            errors.append(f"Verified role permissions: {str(e)[:100]}")
-
-        # Step 4: Set category permissions if they exist
-        try:
-            for category in guild.categories:
-                # Deny @everyone from seeing categories
-                await category.set_permissions(guild.default_role, read_messages=False, reason="Verification setup - hide categories")
-                # Deny auto-role (unverified) from seeing categories except verification
-                await category.set_permissions(auto_role, read_messages=False, reason="Verification setup - unverified users restricted")
-                # Allow verified role to see categories
-                await category.set_permissions(verified_role, read_messages=True, reason="Verification setup - verified users see categories")
-                changes_made += 1
-                await asyncio.sleep(0.1)
-        except Exception as e:
-            errors.append(f"Category permissions: {str(e)[:100]}")
-
-        # Create result embed
-        embed = discord.Embed(
-            title="✅ VERIFICATION SETUP COMPLETE" if not errors else "⚠️ VERIFICATION SETUP PARTIAL",
-            description=f"**{changes_made} permission changes made**",
-            color=0x00FF00 if not errors else 0xFFFF00
-        )
-
-        embed.add_field(
-            name="🔧 Actions Taken",
-            value=f"• Set @everyone to ONLY see verification channel\n• Set {auto_role.name} (unverified) to ONLY see verification channel\n• Set {verified_role.name} to see all channels\n• Applied to {len(guild.text_channels)} text channels\n• Applied to {len(guild.voice_channels)} voice channels\n• Applied to {len(guild.categories)} categories",
-            inline=False
-        )
-
-        embed.add_field(
-            name="✅ Result",
-            value=f"**Unverified users:** Only see <#{VERIFICATION_CHANNEL_ID}>\n**Verified users:** See all channels\n**Unverified Role:** {auto_role.name}\n**Verified Role:** {verified_role.name}",
-            inline=False
-        )
-
-        if errors:
-            embed.add_field(
-                name="⚠️ Some Errors",
-                value="\n".join([f"• {error}" for error in errors[:3]]),
-                inline=False
-            )
-
-        embed.add_field(
-            name="🎯 Next Steps",
-            value="1. Use `/setup_verification_system` to add the verify button\n2. Test with an alt account (gets auto-role)\n3. Verify they only see verification channel\n4. Click verify button to test full access",
-            inline=False
-        )
-
-        await interaction.edit_original_response(content="", embed=embed)
-        logger.info(f"Verification setup completed by {interaction.user.id} - {changes_made} changes made")
-
-    except Exception as e:
-        logger.error(f"Error in setup_verification command: {e}")
-        if not interaction.response.is_done():
-            await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
-        else:
-            await interaction.edit_original_response(content="❌ Some shit went wrong.")
-
-@bot.tree.command(name="bio", description="Learn about STK Supply Bot")
+@bot.tree.command(name="bio", description="Learn about STK Supply Bot - ADMIN ONLY")
 async def bot_bio(interaction: discord.Interaction):
     """Display STK Supply Bot bio and information"""
     try:
+        # Check if user is admin
+        if not is_admin(interaction.user):
+            await interaction.response.send_message("❌ This command is restricted to STK admins only.", ephemeral=True)
+            return
         embed = discord.Embed(
             title="💀 STK SUPPLY BOT 💀",
             description="**The Block's Most Advanced Digital Connect**",
