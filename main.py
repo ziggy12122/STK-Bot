@@ -13,14 +13,8 @@ from database_manager import ShopDatabase
 from load_env import load_environment
 import aiohttp
 import urllib.parse
-import google.generativeai as genai
-
 # Load environment variables
 load_environment()
-
-# Configure Google Gemini API
-GOOGLE_API_KEY = "AIzaSyC-wGlHlNPVmZjxUU4mlD2WU_v9K64Fmq4"
-genai.configure(api_key=GOOGLE_API_KEY)
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -39,7 +33,9 @@ class ShopBot(commands.Bot):
         super().__init__(
             command_prefix=BotConfig.PREFIX,
             intents=intents,
-            help_command=None
+            help_command=None,
+            activity=discord.Activity(type=discord.ActivityType.playing, name="🚀 Starting Up STK Operations..."),
+            status=discord.Status.dnd
         )
 
         self.db = db
@@ -74,9 +70,51 @@ class ShopBot(commands.Bot):
         except Exception as e:
             logger.error(f'Failed to sync commands: {e}')
 
+        # Start cool status rotation
+        self.status_task = asyncio.create_task(self.rotate_status())
+
+    async def rotate_status(self):
+        """Rotate through cool status messages"""
+        statuses = [
+            {"activity": discord.Activity(type=discord.ActivityType.watching, name="💀 STK Operations 💀"), "status": discord.Status.online},
+            {"activity": discord.Activity(type=discord.ActivityType.playing, name="🔫 The Block 🔫"), "status": discord.Status.dnd},
+            {"activity": discord.Game(name="💰 Making Money Moves 💰"), "status": discord.Status.online},
+            {"activity": discord.Activity(type=discord.ActivityType.listening, name="🎯 Customer Orders 🎯"), "status": discord.Status.idle},
+            {"activity": discord.Activity(type=discord.ActivityType.watching, name="⚡ 24/7 Grinding ⚡"), "status": discord.Status.online},
+            {"activity": discord.Game(name="🏆 50+ Customers Served 🏆"), "status": discord.Status.dnd},
+            {"activity": discord.Activity(type=discord.ActivityType.competing, name="💯 Street Rankings 💯"), "status": discord.Status.online},
+            {"activity": discord.Activity(type=discord.ActivityType.playing, name="🔥 No BS Business 🔥"), "status": discord.Status.dnd},
+            {"activity": discord.Activity(type=discord.ActivityType.watching, name="📦 Fresh Inventory 📦"), "status": discord.Status.online},
+            {"activity": discord.Game(name="⚔️ Elite STK Gang ⚔️"), "status": discord.Status.idle},
+        ]
+        
+        while not self.is_closed():
+            try:
+                for status_info in statuses:
+                    if self.is_closed():
+                        break
+                    
+                    await self.change_presence(
+                        activity=status_info["activity"],
+                        status=status_info["status"]
+                    )
+                    
+                    # Wait 30 seconds before changing to next status
+                    await asyncio.sleep(30)
+                    
+            except Exception as e:
+                logger.error(f"Error updating status: {e}")
+                await asyncio.sleep(60)  # Wait longer if there's an error
+
     async def setup_hook(self):
         """This is called when the bot is starting up"""
         logger.info("Bot is starting up...")
+
+    async def close(self):
+        """Clean up when bot shuts down"""
+        if hasattr(self, 'status_task'):
+            self.status_task.cancel()
+        await super().close()
 
     async def on_command_error(self, ctx, error):
         """Handle command errors to prevent crashes"""
@@ -85,6 +123,93 @@ class ShopBot(commands.Bot):
     async def on_error(self, event, *args, **kwargs):
         """Handle general bot errors"""
         logger.error(f"Bot error in {event}: {args}")
+
+    async def on_member_join(self, member):
+        """Cool member join message"""
+        try:
+            # Auto-add to directory
+            auto_detect_members(member.guild)
+            
+            # Create cool welcome embed
+            embed = discord.Embed(
+                title="🔥 NEW MEMBER ALERT 🔥",
+                description=f"**{member.mention} just pulled up to STK!**",
+                color=0x39FF14,
+                timestamp=datetime.datetime.now(datetime.timezone.utc)
+            )
+            
+            embed.add_field(
+                name="👋 Welcome Message",
+                value="Welcome to the block! Check out our shop and get connected with the crew.",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="🎯 Getting Started",
+                value="• Use `/user` to see your profile\n• Check out the shop channels\n• Follow the rules and stay solid",
+                inline=True
+            )
+            
+            embed.add_field(
+                name="💀 The Crew",
+                value="**ZPOFE** • **DROW** • **ASAI** • **KING SLIME**",
+                inline=True
+            )
+            
+            embed.set_thumbnail(url=member.display_avatar.url)
+            embed.set_footer(text="STK Supply • Welcome to the gang", icon_url=member.guild.me.display_avatar.url)
+            
+            # Send to general channel or first text channel
+            welcome_channel = None
+            for channel in member.guild.text_channels:
+                if channel.name.lower() in ['general', 'welcome', 'chat']:
+                    welcome_channel = channel
+                    break
+            
+            if not welcome_channel:
+                welcome_channel = member.guild.text_channels[0] if member.guild.text_channels else None
+            
+            if welcome_channel:
+                await welcome_channel.send(embed=embed)
+                
+            logger.info(f"New member joined: {member.display_name} ({member.id})")
+            
+        except Exception as e:
+            logger.error(f"Error in member join event: {e}")
+
+    async def on_member_remove(self, member):
+        """Cool member leave message"""
+        try:
+            embed = discord.Embed(
+                title="💨 MEMBER LEFT",
+                description=f"**{member.display_name}** left the server",
+                color=0xFF0000,
+                timestamp=datetime.datetime.now(datetime.timezone.utc)
+            )
+            
+            embed.add_field(
+                name="📊 Stats",
+                value=f"**Members:** {len(member.guild.members)}\n**Joined:** <t:{int(member.joined_at.timestamp())}:R>",
+                inline=True
+            )
+            
+            embed.set_thumbnail(url=member.display_avatar.url)
+            embed.set_footer(text="STK Supply • Member departed")
+            
+            # Send to general channel
+            log_channel = None
+            for channel in member.guild.text_channels:
+                if channel.name.lower() in ['general', 'logs', 'chat']:
+                    log_channel = channel
+                    break
+            
+            if log_channel:
+                await log_channel.send(embed=embed)
+                
+            logger.info(f"Member left: {member.display_name} ({member.id})")
+            
+        except Exception as e:
+            logger.error(f"Error in member remove event: {e}")
 
 # Create bot instance
 bot = ShopBot()
@@ -2647,381 +2772,115 @@ class TicketManagementView(discord.ui.View):
 
         await interaction.response.send_message(embed=embed)
 
-# AI Generation Commands - Multi-purpose AI API Integration
 
-@bot.tree.command(name="generate", description="Generate AI images with no watermarks")
+
+# Custom status command for admins
+@bot.tree.command(name="setstatus", description="Set a custom status for the bot")
 @app_commands.describe(
-    prompt="Text description of the image you want to generate",
-    style="Art style for the image (optional)",
-    size="Image size: small, medium, large (optional)"
+    activity_type="Type of activity",
+    message="Status message",
+    status="Bot status color"
 )
-async def generate_image(interaction: discord.Interaction, prompt: str, style: str = None, size: str = "medium"):
-    """Generate AI images using watermark-free APIs"""
+async def set_status(
+    interaction: discord.Interaction, 
+    activity_type: str = "playing",
+    message: str = "💀 STK Supply 💀",
+    status: str = "online"
+):
+    """Set custom bot status"""
     try:
-        if interaction.response.is_done():
+        # Check permissions
+        has_permission = False
+        if interaction.user.guild_permissions.manage_channels:
+            has_permission = True
+        elif BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
+            has_permission = True
+
+        if not has_permission:
+            await interaction.response.send_message("❌ You need admin permissions.", ephemeral=True)
             return
 
-        await interaction.response.defer()
+        # Map activity types
+        activity_map = {
+            "playing": discord.ActivityType.playing,
+            "watching": discord.ActivityType.watching,
+            "listening": discord.ActivityType.listening,
+            "competing": discord.ActivityType.competing,
+            "streaming": discord.ActivityType.streaming
+        }
 
-        # Prepare the prompt
-        if style:
-            full_prompt = f"{prompt}, {style} style, high quality, detailed"
+        # Map status types
+        status_map = {
+            "online": discord.Status.online,
+            "idle": discord.Status.idle,
+            "dnd": discord.Status.dnd,
+            "invisible": discord.Status.invisible
+        }
+
+        activity_type_enum = activity_map.get(activity_type.lower(), discord.ActivityType.playing)
+        status_enum = status_map.get(status.lower(), discord.Status.online)
+
+        # Create activity
+        if activity_type.lower() == "streaming":
+            activity = discord.Streaming(name=message, url="https://twitch.tv/stkgang")
         else:
-            full_prompt = f"{prompt}, high quality, detailed"
+            activity = discord.Activity(type=activity_type_enum, name=message)
 
-        # Size mapping
-        size_map = {
-            "small": "256x256",
-            "medium": "512x512", 
-            "large": "1024x1024"
-        }
-        img_size = size_map.get(size.lower(), "512x512")
-        width, height = img_size.split('x')
+        # Cancel automatic status rotation
+        if hasattr(bot, 'status_task'):
+            bot.status_task.cancel()
 
-        # Clean prompt for URL encoding
-        clean_prompt = urllib.parse.quote(full_prompt)
-        
-        # Create generating embed
-        generating_embed = discord.Embed(
-            title="🎨 Generating AI Image...",
-            description=f"**Prompt:** {prompt}\n**Style:** {style if style else 'Default'}\n**Size:** {img_size}\n\n⏳ Creating your image...",
-            color=0x9932CC
-        )
-        generating_embed.set_footer(text="STK Supply • AI Image Generator • No Watermarks")
-        
-        await interaction.followup.send(embed=generating_embed)
+        # Set new status
+        await bot.change_presence(activity=activity, status=status_enum)
 
-        # Try multiple watermark-free APIs
-        success = False
-        
-        # Primary API: Pollinations (no watermark, reliable)
-        try:
-            seed = random.randint(1, 10000000)
-            api_url = f"https://image.pollinations.ai/prompt/{clean_prompt}?width={width}&height={height}&seed={seed}&nologo=true&enhance=true"
-            
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45)) as session:
-                async with session.get(api_url) as response:
-                    if response.status == 200:
-                        success_embed = discord.Embed(
-                            title="✅ AI Image Generated!",
-                            description=f"**Prompt:** {prompt}\n**Style:** {style if style else 'Default'}\n**Size:** {img_size}",
-                            color=0x00FF00
-                        )
-                        success_embed.set_image(url=api_url)
-                        success_embed.set_footer(text="STK Supply • AI Image Generator • Powered by Pollinations")
-                        
-                        await interaction.edit_original_response(embed=success_embed)
-                        success = True
-                        logger.info(f"Generated AI image for user {interaction.user.id}")
-                        
-        except Exception as e:
-            logger.error(f"Primary API failed: {e}")
-
-        # Backup API: Replicate alternative
-        if not success:
-            try:
-                backup_url = f"https://api.craiyon.com/v3"
-                headers = {"Content-Type": "application/json"}
-                data = {
-                    "prompt": full_prompt,
-                    "version": "35s5hfzxl",
-                    "token": None
-                }
-                
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60)) as session:
-                    async with session.post(backup_url, json=data, headers=headers) as response:
-                        if response.status == 200:
-                            result = await response.json()
-                            if result.get("images"):
-                                img_url = result["images"][0]
-                                
-                                success_embed = discord.Embed(
-                                    title="✅ AI Image Generated!",
-                                    description=f"**Prompt:** {prompt}\n**Style:** {style if style else 'Default'}",
-                                    color=0x00FF00
-                                )
-                                success_embed.set_image(url=img_url)
-                                success_embed.set_footer(text="STK Supply • AI Image Generator • Backup API")
-                                
-                                await interaction.edit_original_response(embed=success_embed)
-                                success = True
-                                
-            except Exception as e:
-                logger.error(f"Backup API failed: {e}")
-
-        # Final fallback
-        if not success:
-            error_embed = discord.Embed(
-                title="❌ Generation Failed",
-                description="AI services are temporarily unavailable. Please try again in a few minutes.",
-                color=0xFF0000
-            )
-            error_embed.set_footer(text="STK Supply • AI Image Generator")
-            await interaction.edit_original_response(embed=error_embed)
-
-    except Exception as e:
-        logger.error(f"Error in generate_image command: {e}")
-        try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message("❌ Generation failed.", ephemeral=True)
-            else:
-                await interaction.edit_original_response(content="❌ Generation failed.")
-        except:
-            pass
-
-@bot.tree.command(name="ai", description="Multi-purpose AI assistant for text, code, and analysis")
-@app_commands.describe(
-    task="What you want the AI to do: write, explain, code, analyze, etc.",
-    prompt="Your detailed request or question",
-    format="Output format: text, code, list, detailed (optional)"
-)
-async def ai_assistant(interaction: discord.Interaction, task: str, prompt: str, format: str = "text"):
-    """Multi-purpose AI assistant for various tasks"""
-    try:
-        if interaction.response.is_done():
-            return
-
-        await interaction.response.defer()
-
-        # Create processing embed
-        processing_embed = discord.Embed(
-            title="🧠 AI Assistant Working...",
-            description=f"**Task:** {task}\n**Request:** {prompt[:100]}{'...' if len(prompt) > 100 else ''}\n\n⏳ Processing your request...",
-            color=0x3498DB
-        )
-        processing_embed.set_footer(text="STK Supply • AI Assistant")
-        
-        await interaction.followup.send(embed=processing_embed)
-
-        # Prepare request based on task type
-        system_prompts = {
-            "write": "You are a creative writing assistant. Write engaging, well-structured content.",
-            "code": "You are a programming expert. Provide clean, efficient, and well-commented code.",
-            "explain": "You are an educational assistant. Explain concepts clearly and simply.",
-            "analyze": "You are an analytical assistant. Provide detailed, structured analysis.",
-            "debug": "You are a debugging expert. Find and explain issues with clear solutions.",
-            "review": "You are a code reviewer. Provide constructive feedback and improvements."
-        }
-
-        system_prompt = system_prompts.get(task.lower(), "You are a helpful AI assistant.")
-        
-        # Use Google Gemini API
-        try:
-            # Initialize Gemini model
-            model = genai.GenerativeModel('gemini-pro')
-            
-            # Prepare the full prompt
-            full_prompt = f"{system_prompt}\n\nTask: {task}\nRequest: {prompt}\nFormat response as: {format}"
-            
-            # Generate response
-            response = await asyncio.get_event_loop().run_in_executor(
-                None, model.generate_content, full_prompt
-            )
-            
-            if response and response.text:
-                ai_response = response.text
-                success = True
-            else:
-                success = False
-                
-        except Exception as e:
-            logger.error(f"Google Gemini API failed: {e}")
-            success = False
-
-        # Fallback responses if Gemini fails
-        if not success:
-            fallback_responses = {
-                "write": f"Here's a creative response to '{prompt}': This is an interesting topic that could be explored from multiple angles...",
-                "code": f"Here's a code solution for '{prompt}':\n\n```python\n# Solution for {prompt}\n# Add your implementation here\npass\n```",
-                "explain": f"Let me explain '{prompt}': This concept involves several key components that work together...",
-                "analyze": f"Analysis of '{prompt}': Key factors to consider include methodology, data sources, and implications..."
-            }
-            ai_response = fallback_responses.get(task.lower(), f"I'd be happy to help with '{prompt}'. Here are some key points to consider...")
-
-            # Format the response
-            if len(ai_response) > 4000:
-                ai_response = ai_response[:4000] + "..."
-
-            # Create response embed
-            response_embed = discord.Embed(
-                title=f"🧠 AI Assistant: {task.title()}",
-                description=ai_response,
-                color=0x00FF00
-            )
-            
-            response_embed.add_field(
-                name="📝 Request",
-                value=prompt[:200] + ("..." if len(prompt) > 200 else ""),
-                inline=False
-            )
-            
-            response_embed.set_footer(text="STK Supply • AI Assistant • Multi-Purpose")
-            
-            await interaction.edit_original_response(embed=response_embed)
-            
-        except Exception as e:
-            logger.error(f"AI processing failed: {e}")
-            raise e
-
-    except Exception as e:
-        logger.error(f"Error in ai_assistant command: {e}")
-        try:
-            error_embed = discord.Embed(
-                title="❌ AI Assistant Error",
-                description="The AI assistant is currently unavailable. Please try again later.",
-                color=0xFF0000
-            )
-            await interaction.edit_original_response(embed=error_embed)
-        except:
-            pass
-
-@bot.tree.command(name="analyze", description="AI analysis of text, code, or data")
-@app_commands.describe(
-    content="The content you want analyzed (text, code, etc.)",
-    analysis_type="Type of analysis: code, text, data, security, performance"
-)
-async def ai_analyze(interaction: discord.Interaction, content: str, analysis_type: str = "general"):
-    """AI-powered content analysis"""
-    try:
-        if interaction.response.is_done():
-            return
-
-        await interaction.response.defer()
-
-        # Create analyzing embed
-        analyzing_embed = discord.Embed(
-            title="🔍 Analyzing Content...",
-            description=f"**Type:** {analysis_type}\n**Content:** {content[:100]}{'...' if len(content) > 100 else ''}\n\n⏳ Running analysis...",
-            color=0xE67E22
-        )
-        analyzing_embed.set_footer(text="STK Supply • AI Content Analyzer")
-        
-        await interaction.followup.send(embed=analyzing_embed)
-
-        # Perform analysis based on type
-        analysis_prompts = {
-            "code": f"Analyze this code for bugs, improvements, and best practices:\n\n{content}",
-            "text": f"Analyze this text for sentiment, key themes, and structure:\n\n{content}",
-            "data": f"Analyze this data for patterns, insights, and anomalies:\n\n{content}",
-            "security": f"Perform a security analysis of this content:\n\n{content}",
-            "performance": f"Analyze this for performance issues and optimizations:\n\n{content}"
-        }
-
-        analysis_prompt = analysis_prompts.get(analysis_type.lower(), f"Provide a general analysis of:\n\n{content}")
-
-        # Use Google Gemini for analysis
-        try:
-            model = genai.GenerativeModel('gemini-pro')
-            response = await asyncio.get_event_loop().run_in_executor(
-                None, model.generate_content, analysis_prompt
-            )
-            
-            if response and response.text:
-                analysis_result = response.text
-            else:
-                raise Exception("No response from Gemini")
-                
-        except Exception as e:
-            logger.error(f"Gemini analysis failed: {e}")
-            # Fallback analysis
-            analysis_result = f"**Analysis Type:** {analysis_type.title()}\n\n"
-            
-            if analysis_type.lower() == "code":
-                analysis_result += "**Code Analysis:**\n• Structure: Well-organized\n• Potential Issues: None detected\n• Suggestions: Consider adding comments\n• Security: No obvious vulnerabilities"
-            elif analysis_type.lower() == "text":
-                word_count = len(content.split())
-                analysis_result += f"**Text Analysis:**\n• Word Count: {word_count}\n• Sentiment: Neutral\n• Readability: Good\n• Key Themes: {content.split()[0] if content.split() else 'N/A'}"
-            else:
-                analysis_result += f"**General Analysis:**\n• Length: {len(content)} characters\n• Format: Text-based\n• Complexity: Moderate\n• Quality: Good"
-
-        # Create results embed
-        results_embed = discord.Embed(
-            title=f"🔍 Analysis Complete: {analysis_type.title()}",
-            description=analysis_result,
+        embed = discord.Embed(
+            title="✅ Status Updated",
+            description=f"**Activity:** {activity_type.title()}\n**Message:** {message}\n**Status:** {status.title()}",
             color=0x00FF00
         )
-        
-        results_embed.add_field(
-            name="📄 Original Content",
-            value=content[:500] + ("..." if len(content) > 500 else ""),
-            inline=False
-        )
-        
-        results_embed.set_footer(text="STK Supply • AI Content Analyzer")
-        
-        await interaction.edit_original_response(embed=results_embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        logger.info(f"Status changed by {interaction.user}: {activity_type} - {message}")
 
     except Exception as e:
-        logger.error(f"Error in ai_analyze command: {e}")
-        try:
-            error_embed = discord.Embed(
-                title="❌ Analysis Failed",
-                description="Content analysis is currently unavailable. Please try again later.",
-                color=0xFF0000
-            )
-            await interaction.edit_original_response(embed=error_embed)
-        except:
-            pass
+        logger.error(f"Error setting status: {e}")
+        await interaction.response.send_message("❌ Failed to set status.", ephemeral=True)
 
-@bot.tree.command(name="aihelp", description="View all available AI commands and features")
-async def ai_help(interaction: discord.Interaction):
-    """Show all AI commands and capabilities"""
+# Resume status rotation command
+@bot.tree.command(name="resumestatus", description="Resume automatic status rotation")
+async def resume_status(interaction: discord.Interaction):
+    """Resume automatic status rotation"""
     try:
-        help_embed = discord.Embed(
-            title="🤖 STK AI Assistant - All Commands",
-            description="**Complete AI toolkit for images, text, code, and analysis**",
-            color=0x9932CC
-        )
+        # Check permissions
+        has_permission = False
+        if interaction.user.guild_permissions.manage_channels:
+            has_permission = True
+        elif BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
+            has_permission = True
 
-        # Image Generation
-        help_embed.add_field(
-            name="🎨 `/generate`",
-            value="**Generate AI Images**\n• No watermarks\n• Multiple styles\n• Custom sizes\n• High quality output",
-            inline=True
-        )
+        if not has_permission:
+            await interaction.response.send_message("❌ You need admin permissions.", ephemeral=True)
+            return
 
-        # AI Assistant
-        help_embed.add_field(
-            name="🧠 `/ai`",
-            value="**Multi-Purpose AI**\n• Write content\n• Generate code\n• Explain concepts\n• Debug issues",
-            inline=True
-        )
+        # Cancel existing task if running
+        if hasattr(bot, 'status_task'):
+            bot.status_task.cancel()
 
-        # Content Analysis
-        help_embed.add_field(
-            name="🔍 `/analyze`",
-            value="**AI Content Analysis**\n• Code review\n• Text analysis\n• Security checks\n• Performance review",
-            inline=True
-        )
+        # Start new rotation
+        bot.status_task = asyncio.create_task(bot.rotate_status())
 
-        # Usage Examples
-        help_embed.add_field(
-            name="💡 Example Commands",
-            value="`/generate prompt:cyberpunk car style:neon size:large`\n`/ai task:code prompt:python web scraper`\n`/analyze content:my code analysis_type:security`",
-            inline=False
+        embed = discord.Embed(
+            title="✅ Status Rotation Resumed",
+            description="Automatic status rotation is now active!",
+            color=0x00FF00
         )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
-        # AI Capabilities
-        help_embed.add_field(
-            name="⚡ AI Capabilities",
-            value="• **Image Generation:** No watermarks, high quality\n• **Code Assistant:** Debug, write, review code\n• **Content Creation:** Writing, analysis, explanations\n• **Data Analysis:** Pattern recognition, insights",
-            inline=False
-        )
-
-        # Available Styles
-        help_embed.add_field(
-            name="🎭 Available Styles",
-            value="realistic • anime • cyberpunk • fantasy • abstract • portrait • landscape • 3D render • pixel art • oil painting",
-            inline=False
-        )
-
-        help_embed.set_footer(text="STK Supply • Advanced AI Assistant • All-in-One Toolkit")
-        
-        await interaction.response.send_message(embed=help_embed, ephemeral=True)
+        logger.info(f"Status rotation resumed by {interaction.user}")
 
     except Exception as e:
-        logger.error(f"Error in ai_help command: {e}")
-        await interaction.response.send_message("❌ Help unavailable.", ephemeral=True)
+        logger.error(f"Error resuming status: {e}")
+        await interaction.response.send_message("❌ Failed to resume status rotation.", ephemeral=True)
 
 # Error handling
 @bot.tree.error
