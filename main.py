@@ -4,6 +4,10 @@ from discord import app_commands
 import asyncio
 import logging
 import datetime
+import random
+import string
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
 from config import BotConfig
 from database_manager import ShopDatabase
 from load_env import load_environment
@@ -55,20 +59,33 @@ class ShopBot(commands.Bot):
 PAYMENT_METHODS = {
     "zpofe": {
         "cashapp": "https://cash.app/$EthanCreel1",
-        "qr_code": "https://i.imgur.com/ZQR7X8Y.png",  # You'll need to upload your QR code image
+        "qr_code": "https://i.imgur.com/ZQR7X8Y.png",
         "display_name": "Zpofe"
     },
     "drow": {
-        "cashapp": None,  # Will be set by /setpayment command
+        "cashapp": "https://cash.app/$DatOneGuy13s",
         "qr_code": None,
         "display_name": "Drow"
     }
 }
 
+# Verification system configuration
+VERIFICATION_CONFIG = {
+    "verified_role_id": 1399949469532946483,
+    "alert_user_1": 1385239185006268457,
+    "alert_user_2": 954818761729376357,
+    "max_attempts": 3,
+    "timeout_duration": 3600  # 1 hour in seconds
+}
+
+# Store verification attempts
+verification_attempts = {}
+pending_verifications = {}
+
 # Create bot instance
 bot = ShopBot()
 
-# Weapon data (removed THA BRONX GUNS as requested)
+# Weapon data
 WEAPON_DATA = {
     "GoldenButton": {"name": "GoldenButton", "price": 0},
     "GreenSwitch": {"name": "GreenSwitch", "price": 0},
@@ -132,11 +149,11 @@ class WeaponSelect(discord.ui.Select):
             options.append(discord.SelectOption(
                 label=label,
                 value=weapon_id,
-                description="Selected" if is_selected else "Click to select"
+                description="Selected" if is_selected else "Click to add"
             ))
 
         super().__init__(
-            placeholder="Select weapons from our collection...",
+            placeholder="Pick your guns from the collection...",
             min_values=0,
             max_values=len(options),
             options=options
@@ -158,7 +175,7 @@ class WeaponSelect(discord.ui.Select):
         except Exception as e:
             logger.error(f"Error in WeaponSelect callback: {e}")
             if not interaction.response.is_done():
-                await interaction.response.send_message("❌ An error occurred. Please try again.", ephemeral=True)
+                await interaction.response.send_message("❌ Some shit went wrong. Try again.", ephemeral=True)
 
 # Watch select dropdown
 class WatchSelect(discord.ui.Select):
@@ -176,7 +193,7 @@ class WatchSelect(discord.ui.Select):
             ))
 
         super().__init__(
-            placeholder="Select a watch...",
+            placeholder="Pick a watch...",
             min_values=0,
             max_values=1,
             options=options
@@ -197,7 +214,7 @@ class WatchSelect(discord.ui.Select):
         except Exception as e:
             logger.error(f"Error in WatchSelect callback: {e}")
             if not interaction.response.is_done():
-                await interaction.response.send_message("❌ An error occurred. Please try again.", ephemeral=True)
+                await interaction.response.send_message("❌ Some shit went wrong. Try again.", ephemeral=True)
 
 # Zpofe Hub select dropdown
 class ZpofeHubSelect(discord.ui.Select):
@@ -223,7 +240,7 @@ class ZpofeHubSelect(discord.ui.Select):
         ]
 
         super().__init__(
-            placeholder="Select Zpofe Hub access...",
+            placeholder="Pick your Zpofe Hub access...",
             min_values=0,
             max_values=1,
             options=options
@@ -231,11 +248,11 @@ class ZpofeHubSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         try:
-            await interaction.response.send_message("🚧 **Zpofe Hub Coming Soon!** 🚧\nThis feature is not available for purchase yet, but you can preview the options.", ephemeral=True)
+            await interaction.response.send_message("🚧 **Zpofe Hub Coming Soon!** 🚧\nThis ain't ready for purchase yet but you can check it out.", ephemeral=True)
         except Exception as e:
             logger.error(f"Error in ZpofeHubSelect callback: {e}")
             if not interaction.response.is_done():
-                await interaction.response.send_message("❌ An error occurred. Please try again.", ephemeral=True)
+                await interaction.response.send_message("❌ Some shit went wrong. Try again.", ephemeral=True)
 
 class WeaponShopView(discord.ui.View):
     def __init__(self, user_id, selected_weapons=None):
@@ -248,54 +265,54 @@ class WeaponShopView(discord.ui.View):
 
     def create_weapon_embed(self):
         embed = discord.Embed(
-            title="🔫 STK WEAPONS",
-            description="**STK ARMORY**\nSelect multiple weapons from our collection:\n**Fullys • Switches • Buttons • Binarys**",
-            color=0x8B0000  # Dark red for STK branding
+            title="🔫 WEAPONS & SWITCHES",
+            description="**Real shit for real YNs**\n\nSwitches • Buttons • Full Auto Mods\n\n**Prices: $1-$3**\nGlock collection, AR builds, premium switches\n\n💀 **No bullshit, just results**",
+            color=0x000000
         )
 
         if self.selected_weapons:
             selected_list = []
             for weapon_id in self.selected_weapons:
                 weapon_name = WEAPON_DATA[weapon_id]['name']
-                selected_list.append(f"🔥 {weapon_name}")
+                selected_list.append(f"💥 {weapon_name}")
 
             embed.add_field(
-                name=f"✅ SELECTED WEAPONS ({len(self.selected_weapons)})",
+                name=f"✅ SELECTED ({len(self.selected_weapons)})",
                 value="\n".join(selected_list) if selected_list else "None selected",
                 inline=False
             )
         else:
             embed.add_field(
-                name="🎯 NO WEAPONS SELECTED",
-                value="Use the dropdown below to select weapons",
+                name="🎯 NOTHING SELECTED",
+                value="Pick your shit from the dropdown below",
                 inline=False
             )
 
         # Show pricing info
         embed.add_field(
-            name="💰 PACKAGE PRICING",
-            value="🔒 **FULL SAFE:** $3.00\n👜 **FULL BAG:** $2.00\n 🚛 **FULL TRUNK:** $1.00",
+            name="💰 PACKAGES",
+            value="🔥 **FULL STASH:** $3.00\n💼 **FULL BAG:** $2.00\n🚛 **FULL LOAD:** $1.00",
             inline=True
         )
 
         embed.add_field(
-            name="🎮 SELLER CARDS",
-            value="🔥 **Zpofe** - Services of all types\n💎 **Drow** - Services for THA BRONX 3",
+            name="👑 YOUR PLUGS",
+            value="💀 **ZPOFE** - Main supplier\n⚡ **DROW** - The connect",
             inline=True
         )
 
-        embed.set_footer(text="STK Weapons • THA BRONX 3 • Select weapons then checkout")
+        embed.set_footer(text="STK Supply • Real YN business • Since day one • 50+ customers served")
         return embed
 
-    @discord.ui.button(label='🛒 ADD TO CART', style=discord.ButtonStyle.success, row=1)
+    @discord.ui.button(label='🛒 ADD TO CART', style=discord.ButtonStyle.success, emoji='🔥', row=1)
     async def add_to_cart(self, interaction: discord.Interaction, button: discord.ui.Button):
         try:
             if interaction.user.id != self.user_id:
-                await interaction.response.send_message("❌ This isn't your shop!", ephemeral=True)
+                await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
                 return
 
             if not self.selected_weapons:
-                await interaction.response.send_message("❌ Please select at least one weapon first!", ephemeral=True)
+                await interaction.response.send_message("❌ Pick some shit before adding to cart!", ephemeral=True)
                 return
 
             # Add to cart
@@ -304,22 +321,22 @@ class WeaponShopView(discord.ui.View):
 
             bot.user_carts[interaction.user.id]["weapons"].update(self.selected_weapons)
 
-            await interaction.response.send_message(f"✅ Added {len(self.selected_weapons)} weapon(s) to your cart!", ephemeral=True)
+            await interaction.response.send_message(f"✅ Added {len(self.selected_weapons)} items to your cart!", ephemeral=True)
         except Exception as e:
             logger.error(f"Error in add_to_cart: {e}")
             if not interaction.response.is_done():
-                await interaction.response.send_message("❌ An error occurred. Please try again.", ephemeral=True)
+                await interaction.response.send_message("❌ Some shit went wrong. Try again.", ephemeral=True)
 
-    @discord.ui.button(label='◀️ BACK TO SHOP', style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(label='◀️ BACK', style=discord.ButtonStyle.secondary, emoji='🏠', row=1)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
         view = PersistentSTKShopView()
         embed = view.create_shop_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
-    @discord.ui.button(label='🗑️ CLEAR SELECTION', style=discord.ButtonStyle.danger, row=1)
+    @discord.ui.button(label='🗑️ CLEAR', style=discord.ButtonStyle.danger, emoji='💥', row=1)
     async def clear_selection(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your shop!", ephemeral=True)
+            await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
             return
 
         self.selected_weapons.clear()
@@ -335,20 +352,20 @@ class MoneyShopView(discord.ui.View):
 
     def create_money_embed(self):
         embed = discord.Embed(
-            title="💰 STK CASH",
-            description="**STK BANK**\n**Unlimited Cash Available** - Get your money fast!",
-            color=0x006400  # Dark green for money
+            title="💰 MONEY PACKAGES",
+            description="**Clean cash for real YNs**\n\nNo questions asked money transfers",
+            color=0x000000
         )
 
         embed.add_field(
-            name="💵 UNLIMITED CASH PACKAGES",
-            value="💰 **990K Cash** - $1.00\n 🏦 **990K Bank Extension** - $1.00\n💳 **1.6M (More Wallet Gamepass)** - $2.00",
+            name="💸 CASH PACKAGES",
+            value="💰 **990K Clean** - $1.00\n🏦 **990K Bank Drop** - $1.00\n💳 **1.6M Wallet Fill** - $2.00",
             inline=False
         )
 
         embed.add_field(
-            name="📋 INSTRUCTIONS",
-            value="1️⃣ Go to the **Black Market**\n2️⃣ Put your **phone/drill** up for 990k or 1.6m\n3️⃣ **Zpofe** or **Drow** will buy it for that amount",
+            name="💼 HOW IT WORKS",
+            value="1️⃣ Go to **Black Market**\n2️⃣ Put your **phone/drill** up for the amount\n3️⃣ **Zpofe** or **Drow** buys it for that price",
             inline=False
         )
 
@@ -360,52 +377,52 @@ class MoneyShopView(discord.ui.View):
             )
 
         embed.add_field(
-            name="🎮 SELLER CARDS",
-            value="🔥 **Zpofe** - Services of all types\n💎 **Drow** - Services for THA BRONX 3",
+            name="👑 YOUR PLUGS",
+            value="💀 **ZPOFE** - Main supplier\n⚡ **DROW** - The connect",
             inline=True
         )
 
-        embed.set_footer(text="STK Cash • THA BRONX 3 • Unlimited cash delivery")
+        embed.set_footer(text="STK Supply • Real YN business • Since day one • 50+ customers served")
         return embed
 
-    @discord.ui.button(label='💰 990K CASH - $1', style=discord.ButtonStyle.success, row=1)
+    @discord.ui.button(label='💰 990K CLEAN', style=discord.ButtonStyle.success, emoji='💵', row=1)
     async def select_990k(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your shop!", ephemeral=True)
+            await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
             return
 
-        self.selected_money = "990K Cash - $1"
+        self.selected_money = "990K Clean - $1"
         embed = self.create_money_embed()
         await interaction.response.edit_message(embed=embed, view=self)
 
-    @discord.ui.button(label='🏦 990K BANK - $1', style=discord.ButtonStyle.success, row=1)
+    @discord.ui.button(label='🏦 990K BANK', style=discord.ButtonStyle.success, emoji='🏧', row=1)
     async def select_990k_bank(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your shop!", ephemeral=True)
+            await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
             return
 
-        self.selected_money = "990K Bank Extension - $1"
+        self.selected_money = "990K Bank Drop - $1"
         embed = self.create_money_embed()
         await interaction.response.edit_message(embed=embed, view=self)
 
-    @discord.ui.button(label='💳 1.6M WALLET - $2', style=discord.ButtonStyle.success, row=1)
+    @discord.ui.button(label='💳 1.6M BOOST', style=discord.ButtonStyle.success, emoji='💎', row=1)
     async def select_1_6m(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your shop!", ephemeral=True)
+            await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
             return
 
-        self.selected_money = "1.6M More Wallet - $2"
+        self.selected_money = "1.6M Wallet Fill - $2"
         embed = self.create_money_embed()
         await interaction.response.edit_message(embed=embed, view=self)
 
-    @discord.ui.button(label='🛒 ADD TO CART', style=discord.ButtonStyle.primary, row=2)
+    @discord.ui.button(label='🛒 ADD TO CART', style=discord.ButtonStyle.primary, emoji='🔥', row=2)
     async def add_to_cart(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your shop!", ephemeral=True)
+            await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
             return
 
         if not self.selected_money:
-            await interaction.response.send_message("❌ Please select a money package first!", ephemeral=True)
+            await interaction.response.send_message("❌ Pick a package before adding to cart!", ephemeral=True)
             return
 
         # Add to cart
@@ -415,7 +432,7 @@ class MoneyShopView(discord.ui.View):
         bot.user_carts[interaction.user.id]["money"] = self.selected_money
         await interaction.response.send_message(f"✅ Added {self.selected_money} to your cart!", ephemeral=True)
 
-    @discord.ui.button(label='◀️ BACK TO SHOP', style=discord.ButtonStyle.secondary, row=2)
+    @discord.ui.button(label='◀️ BACK', style=discord.ButtonStyle.secondary, emoji='🏠', row=2)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
         view = PersistentSTKShopView()
         embed = view.create_shop_embed()
@@ -434,15 +451,15 @@ class OtherShopView(discord.ui.View):
 
     def create_other_embed(self):
         embed = discord.Embed(
-            title="📦 STK OTHER",
-            description="**STK EXTRAS**\n**Watches • Scripts • Ext**\nPremium accessories & tools!",
-            color=0x4B0082  # Dark purple
+            title="📦 PREMIUM SHIT",
+            description="**High-end gear for real YNs**\n\nWatches • Scripts • Exclusive items",
+            color=0x000000
         )
 
         # Watches section
         embed.add_field(
             name="⌚ LUXURY WATCHES",
-            value="**All Watches:** $1.00 each\nSelect from the dropdown below",
+            value="**All Watches:** $1.00 each\nPick from the dropdown below",
             inline=False
         )
 
@@ -457,26 +474,26 @@ class OtherShopView(discord.ui.View):
         # Zpofe Hub section
         embed.add_field(
             name="💻 ZPOFE HUB (COMING SOON)",
-            value="🔥 All of Zpofe's Scripts in One Place!\n\n💎 **Permanent Key** - $5.00\n📅 **3 Month Key** - $3.00\n🗓️ **1 Month Key** - $1.00",
+            value="🔥 All of Zpofe's Scripts in One Place!\n\n💎 **Lifetime Key** - $5.00\n📅 **3 Month Key** - $3.00\n🗓️ **1 Month Key** - $1.00",
             inline=False
         )
 
         embed.add_field(
-            name="🎮 SELLER CARDS",
-            value="🔥 **Zpofe** - Services of all types\n💎 **Drow** - Services for THA BRONX 3",
+            name="👑 YOUR PLUGS",
+            value="💀 **ZPOFE** - Main supplier\n⚡ **DROW** - The connect",
             inline=True
         )
 
         return embed
 
-    @discord.ui.button(label='🛒 ADD TO CART', style=discord.ButtonStyle.success, row=2)
+    @discord.ui.button(label='🛒 ADD TO CART', style=discord.ButtonStyle.success, emoji='🔥', row=2)
     async def add_to_cart(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your shop!", ephemeral=True)
+            await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
             return
 
         if not self.selected_watch and not self.selected_hub:
-            await interaction.response.send_message("❌ Please select an item first!", ephemeral=True)
+            await interaction.response.send_message("❌ Pick some shit before adding to cart!", ephemeral=True)
             return
 
         # Add to cart
@@ -485,7 +502,6 @@ class OtherShopView(discord.ui.View):
 
         added_items = []
         if self.selected_watch:
-            # Ensure selected_watch is added to the 'watches' set
             if self.selected_watch not in bot.user_carts[interaction.user.id]["watches"]:
                 bot.user_carts[interaction.user.id]["watches"].add(self.selected_watch)
                 added_items.append(f"Watch: {WATCH_DATA[self.selected_watch]['name']}")
@@ -497,10 +513,9 @@ class OtherShopView(discord.ui.View):
         if added_items:
             await interaction.response.send_message(f"✅ Added to cart:\n" + "\n".join(added_items), ephemeral=True)
         else:
-            await interaction.response.send_message("Nothing new to add to the cart.", ephemeral=True)
+            await interaction.response.send_message("Nothing new to add.", ephemeral=True)
 
-
-    @discord.ui.button(label='◀️ BACK TO SHOP', style=discord.ButtonStyle.secondary, row=2)
+    @discord.ui.button(label='◀️ BACK', style=discord.ButtonStyle.secondary, emoji='🏠', row=2)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
         view = PersistentSTKShopView()
         embed = view.create_shop_embed()
@@ -513,43 +528,43 @@ class InfoView(discord.ui.View):
 
     def create_info_embed(self):
         embed = discord.Embed(
-            title="ℹ️ STK SHOP - INFO",
-            description="**THA BRONX 3 HEADQUARTERS**\nYour trusted street suppliers since day one!",
-            color=0x1E90FF  # Blue
+            title="ℹ️ ABOUT US",
+            description="**Real YN suppliers with real results**\n\nYour trusted connects since day one!",
+            color=0x808080
         )
 
         embed.add_field(
-            name="🎮 SELLER CARDS",
-            value="🔥 **Zpofe** - Services of all types\n💎 **Drow** - Services for THA BRONX 3\n\n*Trusted, reliable, fast delivery*",
+            name="👑 YOUR PLUGS",
+            value="💀 **ZPOFE** - Main supplier\n• 3+ years in the game • All services\n• Fast delivery • Loyal customers\n• Always available • Real shit only\n\n⚡ **DROW** - The specialist\n• High-end connect • Quality guaranteed\n• Silent moves • Trusted source\n• No bullshit • Results speak",
             inline=False
         )
 
         embed.add_field(
-            name="🔥 AVAILABLE NOW",
-            value="💻 **THA BRONX 3 Services** are the only ones available for purchase right now\n🎮 **All other services coming soon**",
+            name="🚀 SERVICES ACTIVE",
+            value="💻 **All services** are currently live\n🎮 **More shit coming soon**",
             inline=False
         )
 
         embed.add_field(
-            name="🏆 STK SERVICES",
-            value="✅ **Premium Quality**\n✅ **Fast Delivery**\n✅ **24/7 Support**\n✅ **Secure Transactions**",
+            name="🏆 WHY US?",
+            value="✅ **50+** Happy customers\n✅ **2-5 min** Fast delivery\n✅ **99.9%** Success rate\n✅ **24/7** Always available\n✅ **100%** No scam guarantee\n✅ **Silent** Professional service",
             inline=True
         )
 
         embed.add_field(
-            name="📞 LOCATIONS",
-            value="🏙️ **THA BRONX 3** (Active)\n\n*Expanding to new territories soon*",
+            name="📞 CONTACT",
+            value="🎯 **Active now**\n\n*Ready for business*",
             inline=True
         )
 
-        embed.set_footer(text="STK Services • THA BRONX 3 • Est. 2024")
+        embed.set_footer(text="STK Supply • Real YN business • Since day one • 50+ customers served")
         return embed
 
-    @discord.ui.button(label='📞 SUPPORT', style=discord.ButtonStyle.primary, row=1)
+    @discord.ui.button(label='📞 CONTACT', style=discord.ButtonStyle.primary, emoji='💬', row=1)
     async def contact_support(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message("📞 **SUPPORT CONTACT**\n\nFor support, please DM **Zpofe** directly.\n\n*Response time: Usually within a few hours*", ephemeral=True)
+        await interaction.response.send_message("📞 **CONTACT INFO**\n\nDM **Zpofe** for any questions or support.\n\n*Response time: Usually within a few hours*", ephemeral=True)
 
-    @discord.ui.button(label='◀️ BACK TO SHOP', style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(label='◀️ BACK', style=discord.ButtonStyle.secondary, emoji='🏠', row=1)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
         view = PersistentSTKShopView()
         embed = view.create_shop_embed()
@@ -562,9 +577,9 @@ class CartView(discord.ui.View):
 
     def create_cart_embed(self):
         embed = discord.Embed(
-            title="🛒 STK SHOP - CART",
-            description="**YOUR THA BRONX 3 ORDER**\nReview your items before checkout:",
-            color=0xFF6347  # Orange-red
+            title="🛒 YOUR CART",
+            description="**Review your shit before checkout:**",
+            color=0xFF8C00
         )
 
         cart = bot.user_carts.get(self.user_id, {"weapons": set(), "money": None, "watches": set(), "hub": None})
@@ -576,7 +591,7 @@ class CartView(discord.ui.View):
             items.append(f"🔫 **WEAPONS** ({len(cart['weapons'])})")
             for weapon_id in cart["weapons"]:
                 items.append(f"  • {WEAPON_DATA[weapon_id]['name']}")
-            items.append("  💰 *Price: Choose package at checkout*")
+            items.append("  💰 *Price: Package deal pricing*")
 
         # Money
         if cart["money"]:
@@ -600,12 +615,12 @@ class CartView(discord.ui.View):
             items.append(f"💻 **ZPOFE HUB** (Coming Soon)")
             hub_prices = {"1month": 1, "3month": 3, "perm": 5}
             items.append(f"  • {cart['hub']} Key")
-            items.append(f"  • *Not available for purchase yet*")
+            items.append(f"  • *Not available yet*")
 
         if not items:
             embed.add_field(
                 name="🛒 EMPTY CART",
-                value="Your cart is empty! Go back to shop and add some items.",
+                value="Your cart is empty! Go back and pick some shit.",
                 inline=False
             )
         else:
@@ -617,62 +632,62 @@ class CartView(discord.ui.View):
 
             if total > 0:
                 embed.add_field(
-                    name="💰 ESTIMATED TOTAL",
-                    value=f"**${total:.2f}**\n*(Weapons pricing determined at checkout)*",
+                    name="💰 TOTAL",
+                    value=f"**${total:.2f}**\n*(Weapon pricing at checkout)*",
                     inline=True
                 )
 
         embed.add_field(
-            name="🎮 SELLER CARDS",
-            value="🔥 **Zpofe** - Services of all types\n💎 **Drow** - Services for THA BRONX 3",
+            name="👑 YOUR PLUGS",
+            value="💀 **ZPOFE** - Main supplier\n⚡ **DROW** - The connect",
             inline=True
         )
 
-        embed.set_footer(text="STK Services • THA BRONX 3 • Secure checkout")
+        embed.set_footer(text="STK Supply • Real YN business • Since day one • 50+ customers served")
         return embed
 
-    @discord.ui.button(label='💳 CHECKOUT', style=discord.ButtonStyle.success, row=1)
+    @discord.ui.button(label='💳 CHECKOUT', style=discord.ButtonStyle.success, emoji='🔥', row=1)
     async def checkout(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your cart!", ephemeral=True)
+            await interaction.response.send_message("❌ This ain't your cart!", ephemeral=True)
             return
 
         cart = bot.user_carts.get(self.user_id, {"weapons": set(), "money": None, "watches": set(), "hub": None})
 
-        if not any([cart["weapons"], cart["money"], cart["watches"]]):  # Don't count hub since it's not available
+        if not any([cart["weapons"], cart["money"], cart["watches"]]):
             await interaction.response.send_message("❌ Your cart is empty!", ephemeral=True)
             return
 
         try:
             ticket_channel = await create_purchase_ticket(interaction, cart)
             if ticket_channel:
-                await interaction.response.send_message(f"✅ **Purchase ticket created!**\n\nYour order ticket: {ticket_channel.mention}\n\nZpofe and Drow have been notified and will assist you shortly!", ephemeral=True)
+                await interaction.response.send_message(f"✅ **Order placed!**\n\nYour private channel: {ticket_channel.mention}\n\nZpofe and Drow have been notified!", ephemeral=True)
 
                 # Clear cart after successful ticket creation
                 bot.user_carts[self.user_id] = {"weapons": set(), "money": None, "watches": set(), "hub": None}
             else:
-                await interaction.response.send_message("❌ Unable to create ticket. Please contact an admin.", ephemeral=True)
+                await interaction.response.send_message("❌ Couldn't place order. Contact support.", ephemeral=True)
         except Exception as e:
-            logger.error(f"Error creating ticket: {e}")
-            await interaction.response.send_message("❌ An error occurred while creating your ticket.", ephemeral=True)
+            logger.error(f"Error during checkout: {e}")
+            await interaction.response.send_message("❌ Some shit went wrong during checkout.", ephemeral=True)
 
-    @discord.ui.button(label='🗑️ CLEAR CART', style=discord.ButtonStyle.danger, row=1)
+    @discord.ui.button(label='🗑️ CLEAR CART', style=discord.ButtonStyle.danger, emoji='💥', row=1)
     async def clear_cart(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your cart!", ephemeral=True)
+            await interaction.response.send_message("❌ This ain't your cart!", ephemeral=True)
             return
 
         bot.user_carts[self.user_id] = {"weapons": set(), "money": None, "watches": set(), "hub": None}
         embed = self.create_cart_embed()
         await interaction.response.edit_message(embed=embed, view=self)
 
-    @discord.ui.button(label='◀️ BACK TO SHOP', style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(label='◀️ BACK', style=discord.ButtonStyle.secondary, emoji='🏠', row=1)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
         view = PersistentSTKShopView()
         embed = view.create_shop_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
-# Main STK Shop View
+# Main STK Shop View - Each user gets their own instance when they interact
 class STKShopView(discord.ui.View):
     def __init__(self, user_id):
         super().__init__(timeout=180)
@@ -680,192 +695,189 @@ class STKShopView(discord.ui.View):
 
     def create_shop_embed(self):
         embed = discord.Embed(
-            title="🔥 STK PREMIUM SERVICES",
-            description="**🏴‍☠️ WELCOME TO THA BRONX 3 HEADQUARTERS 🏴‍☠️**\n\n*Where legends shop for legendary items*\n\n**👑 PREMIUM QUALITY** • **⚡ INSTANT DELIVERY** • **🔒 SECURE TRANSACTIONS**\n\n*Your trusted street suppliers since day one*\n\n**Choose your category below to start shopping:**",
-            color=0x8B0000  # Dark red for STK branding
+            title="💀 STK SUPPLY 💀",
+            description="**Real YN business with real results**\n\n**🔥 QUALITY GUARANTEED** • **⚡ FAST DELIVERY** • **💯 NO SCAM**\n\nYour trusted plugs since day one\n\n**Pick what you need:**",
+            color=0x000000
         )
 
-        # Add STK SHOP header image
-        embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif?ex=68a11fe6&is=689fce66&hm=c6993267511d0fbfe32bf615f5a205279510c9091caa9f217860f1dd9e106ff0&")  # STK SHOP header GIF
-        # Add BEST PRICES footer as thumbnail
-        embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif?ex=68a11fe6&is=689fce66&hm=3d7e0b292626bab621f3dde0fd5a0377f52a31cc9fc81fddcde8db437de66edd&")  # STK SHOP thumbnail GIF
+        # Add images
+        embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif?ex=68a11fe6&is=689fce66&hm=c6993267511d0fbfe32bf615f5a205279510c9091caa9f217860f1dd9e106ff0&")
+        embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif?ex=68a11fe6&is=689fce66&hm=3d7e0b292626bab621f3dde0fd5a0377f52a31cc9fc81fddcde8db437de66edd&")
 
         embed.add_field(
-            name="🔫 WEAPONS ARMORY",
-            value="**🏴‍☠️ Premium Street Arsenal**\n\n*Fullys • Switches • Buttons • Binarys*\n\n**Package deals from $1-$3**\n*Glock series, AR platform, premium switches*\n\n⚡ **Most Popular Category**",
+            name="🔫 WEAPONS & SWITCHES",
+            value="**Real shit for real YNs**\n\nSwitches • Buttons • Full Auto Mods\n\n**Prices: $1-$3**\nGlock collection, AR builds, premium switches\n\n💀 **No bullshit**",
             inline=True
         )
 
         embed.add_field(
-            name="💰 FINANCIAL SERVICES",
-            value="**💸 Unlimited Cash Flow**\n\n*Instant wealth delivery system*\n\n**Packages from $1-$2**\n*990K cash, bank extensions, wallet boosts*\n\n🚀 **Lightning Fast Delivery**",
+            name="💰 MONEY PACKAGES",
+            value="**Clean cash for YNs**\n\nNo questions asked transfers\n\n**Packages: $1-$2**\n990K clean, bank drops, wallet fills\n\n⚡ **Fast & clean**",
             inline=True
         )
 
         embed.add_field(
-            name="📦 LUXURY COLLECTION",
-            value="**💎 Premium Accessories**\n\n*Watches • Scripts • Exclusive Tools*\n\n**Starting at $1 each**\n*Cartier, Richard Mille, AP watches*\n\n✨ **Status Symbols**",
+            name="📦 PREMIUM SHIT",
+            value="**High-end gear**\n\nWatches • Scripts • Exclusive items\n\n**Starting at $1**\nLuxury watches, premium codes\n\n🔥 **Top quality**",
             inline=True
         )
 
         embed.add_field(
-            name="👑 YOUR ELITE SUPPLIERS",
-            value="🔥 **ZPOFE** - *The Mastermind*\n• All services specialist • 3+ years experience\n• Script developer & premium trader\n• 24/7 support • Thousands of customers\n\n💎 **DROW** - *The Specialist*\n• THA BRONX 3 expert • Luxury curator\n• Lightning delivery • Professional service\n• Quality guaranteed • Premium focus",
+            name="👑 YOUR PLUGS",
+            value="💀 **ZPOFE** - Main supplier\n• 3+ years in the game • All services\n• Fast delivery • Loyal customers\n\n⚡ **DROW** - The specialist\n• High-end connect • Quality guaranteed\n• Silent moves • Trusted source",
             inline=False
         )
 
         embed.add_field(
-            name="🏆 WHY CHOOSE STK?",
-            value="✅ **5000+** Happy customers\n✅ **2-5 min** Average delivery time\n✅ **99.9%** Success rate\n✅ **24/7** Support availability\n✅ **100%** Satisfaction guarantee\n✅ **Secure** Payment processing",
+            name="🏆 WHY US?",
+            value="💀 **50+** Happy customers\n⚡ **2-5 min** Fast delivery\n🔥 **99.9%** Success rate\n💯 **24/7** Always available\n🚫 **100%** No scam guarantee",
             inline=True
         )
 
         embed.add_field(
-            name="⚡ GETTING STARTED",
-            value="🎯 **Browse** categories above\n🛒 **Add** items to your cart\n💳 **Checkout** securely\n📞 **Support** ticket created\n⚡ **Delivery** in minutes\n\n*Professional service guaranteed*",
+            name="💼 HOW IT WORKS",
+            value="🎯 **Browse** the catalog\n💀 **Pick** your shit\n💰 **Pay** your plug\n📞 **Get** private chat\n⚡ **Receive** fast delivery",
             inline=True
         )
 
-        embed.set_footer(text="STK Premium Services • THA BRONX 3 Headquarters • Est. 2024 • Where Legends Shop")
+        embed.set_footer(text="STK Supply • Real YN business • Since day one • 50+ customers served")
         return embed
 
-    @discord.ui.button(label='🔫 WEAPONS', style=discord.ButtonStyle.danger, row=1)
+    @discord.ui.button(label='🔫 WEAPONS', style=discord.ButtonStyle.danger, emoji='💥', row=1)
     async def weapons_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your shop!", ephemeral=True)
+            await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
             return
 
         view = WeaponShopView(interaction.user.id)
         embed = view.create_weapon_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
-    @discord.ui.button(label='💰 MONEY', style=discord.ButtonStyle.success, row=1)
+    @discord.ui.button(label='💰 MONEY', style=discord.ButtonStyle.success, emoji='💵', row=1)
     async def money_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your shop!", ephemeral=True)
+            await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
             return
 
         view = MoneyShopView(interaction.user.id)
         embed = view.create_money_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
-    @discord.ui.button(label='📦 OTHER', style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(label='📦 PREMIUM', style=discord.ButtonStyle.secondary, emoji='💎', row=1)
     async def other_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your shop!", ephemeral=True)
+            await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
             return
 
         view = OtherShopView(interaction.user.id)
         embed = view.create_other_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
-    @discord.ui.button(label='ℹ️ INFO', style=discord.ButtonStyle.primary, row=2)
+    @discord.ui.button(label='ℹ️ INFO', style=discord.ButtonStyle.primary, emoji='📋', row=2)
     async def info_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your shop!", ephemeral=True)
+            await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
             return
 
         view = InfoView(interaction.user.id)
         embed = view.create_info_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
-    @discord.ui.button(label='🛒 CART', style=discord.ButtonStyle.primary, row=2)
+    @discord.ui.button(label='🛒 CART', style=discord.ButtonStyle.primary, emoji='🔥', row=2)
     async def cart_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This isn't your shop!", ephemeral=True)
+            await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
             return
 
         view = CartView(interaction.user.id)
         embed = view.create_cart_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
-# New class for persistent shop view
+# Persistent shop view for the main shop message
 class PersistentSTKShopView(discord.ui.View):
     def __init__(self):
-        super().__init__(timeout=None) # No timeout for persistent views
+        super().__init__(timeout=None)
 
     def create_shop_embed(self):
         embed = discord.Embed(
-            title="🔥 STK PREMIUM SERVICES",
-            description="**🏴‍☠️ WELCOME TO THA BRONX 3 HEADQUARTERS 🏴‍☠️**\n\n*Where legends shop for legendary items*\n\n**👑 PREMIUM QUALITY** • **⚡ INSTANT DELIVERY** • **🔒 SECURE TRANSACTIONS**\n\n*Your trusted street suppliers since day one*\n\n**Choose your category below to start shopping:**",
-            color=0x8B0000  # Dark red for STK branding
+            title="💀 STK SUPPLY 💀",
+            description="**Real YN business with real results**\n\n**🔥 QUALITY GUARANTEED** • **⚡ FAST DELIVERY** • **💯 NO SCAM**\n\nYour trusted plugs since day one\n\n**Pick what you need:**",
+            color=0x000000
         )
 
-        # Add STK SHOP header image
-        embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif?ex=68a11fe6&is=689fce66&hm=c6993267511d0fbfe32bf615f5a205279510c9091caa9f217860f1dd9e106ff0&")  # STK SHOP header GIF
-        # Add BEST PRICES footer as thumbnail
-        embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif?ex=68a11fe6&is=689fce66&hm=3d7e0b292626bab621f3dde0fd5a0377f52a31cc9fc81fddcde8db437de66edd&")  # STK SHOP thumbnail GIF
+        # Add images
+        embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif?ex=68a11fe6&is=689fce66&hm=c6993267511d0fbfe32bf615f5a205279510c9091caa9f217860f1dd9e106ff0&")
+        embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif?ex=68a11fe6&is=689fce66&hm=3d7e0b292626bab621f3dde0fd5a0377f52a31cc9fc81fddcde8db437de66edd&")
 
         embed.add_field(
-            name="🔫 WEAPONS ARMORY",
-            value="**🏴‍☠️ Premium Street Arsenal**\n\n*Fullys • Switches • Buttons • Binarys*\n\n**Package deals from $1-$3**\n*Glock series, AR platform, premium switches*\n\n⚡ **Most Popular Category**",
+            name="🔫 WEAPONS & SWITCHES",
+            value="**Real shit for real YNs**\n\nSwitches • Buttons • Full Auto Mods\n\n**Prices: $1-$3**\nGlock collection, AR builds, premium switches\n\n💀 **No bullshit**",
             inline=True
         )
 
         embed.add_field(
-            name="💰 FINANCIAL SERVICES",
-            value="**💸 Unlimited Cash Flow**\n\n*Instant wealth delivery system*\n\n**Packages from $1-$2**\n*990K cash, bank extensions, wallet boosts*\n\n🚀 **Lightning Fast Delivery**",
+            name="💰 MONEY PACKAGES",
+            value="**Clean cash for YNs**\n\nNo questions asked transfers\n\n**Packages: $1-$2**\n990K clean, bank drops, wallet fills\n\n⚡ **Fast & clean**",
             inline=True
         )
 
         embed.add_field(
-            name="📦 LUXURY COLLECTION",
-            value="**💎 Premium Accessories**\n\n*Watches • Scripts • Exclusive Tools*\n\n**Starting at $1 each**\n*Cartier, Richard Mille, AP watches*\n\n✨ **Status Symbols**",
+            name="📦 PREMIUM SHIT",
+            value="**High-end gear**\n\nWatches • Scripts • Exclusive items\n\n**Starting at $1**\nLuxury watches, premium codes\n\n🔥 **Top quality**",
             inline=True
         )
 
         embed.add_field(
-            name="👑 YOUR ELITE SUPPLIERS",
-            value="🔥 **ZPOFE** - *The Mastermind*\n• All services specialist • 3+ years experience\n• Script developer & premium trader\n• 24/7 support • Thousands of customers\n\n💎 **DROW** - *The Specialist*\n• THA BRONX 3 expert • Luxury curator\n• Lightning delivery • Professional service\n• Quality guaranteed • Premium focus",
+            name="👑 YOUR PLUGS",
+            value="💀 **ZPOFE** - Main supplier\n• 3+ years in the game • All services\n• Fast delivery • Loyal customers\n\n⚡ **DROW** - The specialist\n• High-end connect • Quality guaranteed\n• Silent moves • Trusted source",
             inline=False
         )
 
         embed.add_field(
-            name="🏆 WHY CHOOSE STK?",
-            value="✅ **5000+** Happy customers\n✅ **2-5 min** Average delivery time\n✅ **99.9%** Success rate\n✅ **24/7** Support availability\n✅ **100%** Satisfaction guarantee\n✅ **Secure** Payment processing",
+            name="🏆 WHY US?",
+            value="💀 **50+** Happy customers\n⚡ **2-5 min** Fast delivery\n🔥 **99.9%** Success rate\n💯 **24/7** Always available\n🚫 **100%** No scam guarantee",
             inline=True
         )
 
         embed.add_field(
-            name="⚡ GETTING STARTED",
-            value="🎯 **Browse** categories above\n🛒 **Add** items to your cart\n💳 **Checkout** securely\n📞 **Support** ticket created\n⚡ **Delivery** in minutes\n\n*Professional service guaranteed*",
+            name="💼 HOW IT WORKS",
+            value="🎯 **Browse** the catalog\n💀 **Pick** your shit\n💰 **Pay** your plug\n📞 **Get** private chat\n⚡ **Receive** fast delivery",
             inline=True
         )
 
-        embed.set_footer(text="STK Premium Services • THA BRONX 3 Headquarters • Est. 2024 • Where Legends Shop")
+        embed.set_footer(text="STK Supply • Real YN business • Since day one • 50+ customers served")
         return embed
 
-    # These button callbacks will redirect to the appropriate view for any user
-    @discord.ui.button(label='🔫 WEAPONS', style=discord.ButtonStyle.danger, row=1)
+    # These buttons create a new user-specific view for each interaction
+    @discord.ui.button(label='🔫 WEAPONS', style=discord.ButtonStyle.danger, emoji='💥', row=1)
     async def weapons_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = WeaponShopView(interaction.user.id) # Pass the current user's ID
+        view = WeaponShopView(interaction.user.id)
         embed = view.create_weapon_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
-    @discord.ui.button(label='💰 MONEY', style=discord.ButtonStyle.success, row=1)
+    @discord.ui.button(label='💰 MONEY', style=discord.ButtonStyle.success, emoji='💵', row=1)
     async def money_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = MoneyShopView(interaction.user.id) # Pass the current user's ID
+        view = MoneyShopView(interaction.user.id)
         embed = view.create_money_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
-    @discord.ui.button(label='📦 OTHER', style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(label='📦 PREMIUM', style=discord.ButtonStyle.secondary, emoji='💎', row=1)
     async def other_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = OtherShopView(interaction.user.id) # Pass the current user's ID
+        view = OtherShopView(interaction.user.id)
         embed = view.create_other_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
-    @discord.ui.button(label='ℹ️ INFO', style=discord.ButtonStyle.primary, row=2)
+    @discord.ui.button(label='ℹ️ INFO', style=discord.ButtonStyle.primary, emoji='📋', row=2)
     async def info_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = InfoView(interaction.user.id) # Pass the current user's ID
+        view = InfoView(interaction.user.id)
         embed = view.create_info_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
-    @discord.ui.button(label='🛒 CART', style=discord.ButtonStyle.primary, row=2)
+    @discord.ui.button(label='🛒 CART', style=discord.ButtonStyle.primary, emoji='🔥', row=2)
     async def cart_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = CartView(interaction.user.id) # Pass the current user's ID
+        view = CartView(interaction.user.id)
         embed = view.create_cart_embed()
         await interaction.response.edit_message(embed=embed, view=view)
-
 
 async def create_purchase_ticket(interaction: discord.Interaction, cart):
     """Create a ticket channel for purchase processing"""
@@ -946,8 +958,8 @@ async def send_ticket_embed(channel, user, cart):
 
     # Create main purchase embed
     embed = discord.Embed(
-        title="🎉 Thank you for your STK purchase!",
-        description="**Your order is being processed**\n\nZpofe or Drow will be with you shortly. They have been notified!",
+        title="🔥 Order Received!",
+        description="**Your order is being processed**\n\nZpofe or Drow will be with you soon. They've been notified!",
         color=0x00ff00,
         timestamp=datetime.datetime.utcnow()
     )
@@ -959,7 +971,7 @@ async def send_ticket_embed(channel, user, cart):
     )
 
     embed.add_field(
-        name="💰 Estimated Total",
+        name="💰 Total",
         value=f"${total:.2f}" if total > 0 else "TBD",
         inline=True
     )
@@ -977,97 +989,717 @@ async def send_ticket_embed(channel, user, cart):
     )
 
     embed.set_thumbnail(url=user.display_avatar.url)
-    embed.set_footer(text="STK Services • Professional Service", icon_url=channel.guild.me.display_avatar.url)
+    embed.set_footer(text="STK Supply • Professional Service", icon_url=channel.guild.me.display_avatar.url)
 
     await channel.send(embed=embed)
 
     # Send payment embed
     payment_embed = discord.Embed(
-        title="💳 Payment Information",
-        description="**Choose your payment method below:**",
+        title="💳 Payment Info",
+        description="**Pick your payment method:**",
         color=0x00ff00
     )
 
     # Zpofe's payment info
     if PAYMENT_METHODS["zpofe"]["cashapp"]:
         payment_embed.add_field(
-            name="🔥 Zpofe's CashApp",
-            value=f"[Click here to pay Zpofe]({PAYMENT_METHODS['zpofe']['cashapp']})\n`{PAYMENT_METHODS['zpofe']['cashapp']}`",
+            name="💀 Zpofe's CashApp",
+            value=f"[Pay Zpofe here]({PAYMENT_METHODS['zpofe']['cashapp']})\n`{PAYMENT_METHODS['zpofe']['cashapp']}`",
             inline=False
         )
 
     # Drow's payment info
     if PAYMENT_METHODS["drow"]["cashapp"]:
         payment_embed.add_field(
-            name="💎 Drow's Payment",
-            value=f"[Click here to pay Drow]({PAYMENT_METHODS['drow']['cashapp']})\n`{PAYMENT_METHODS['drow']['cashapp']}`",
+            name="⚡ Drow's Payment",
+            value=f"[Pay Drow here]({PAYMENT_METHODS['drow']['cashapp']})\n`{PAYMENT_METHODS['drow']['cashapp']}`",
             inline=False
         )
     else:
         payment_embed.add_field(
-            name="💎 Drow's Payment",
+            name="⚡ Drow's Payment",
             value="*Payment method not set*",
             inline=False
         )
 
     payment_embed.add_field(
-        name="📱 Instructions",
-        value="1️⃣ Choose your preferred seller\n2️⃣ Send payment using the link above\n3️⃣ Send a screenshot of payment confirmation\n4️⃣ Wait for your items to be delivered!",
+        name="📱 How to pay",
+        value="1️⃣ Pick your plug\n2️⃣ Send payment using the link\n3️⃣ Send screenshot of payment\n4️⃣ Get your shit delivered fast!",
         inline=False
     )
 
-    payment_embed.set_footer(text="STK Services • Secure Payment Processing")
+    payment_embed.set_footer(text="STK Supply • Secure Payment")
 
-    # Add QR code image if available for Zpofe
+    # Add QR code image if available
     if PAYMENT_METHODS["zpofe"]["qr_code"]:
         payment_embed.set_image(url=PAYMENT_METHODS["zpofe"]["qr_code"])
 
     await channel.send(embed=payment_embed)
 
     # Ping sellers
-    ping_message = "🔔 **New Purchase Alert!**\n\n"
+    ping_message = "🔔 **New Order!**\n\n"
 
-    # Ping Zpofe (you) - replace with your user ID
-    zpofe_id = 1399949855799119952  # Replace with Zpofe's actual user ID
-    ping_message += f"🔥 <@{zpofe_id}> (Zpofe)\n"
+    # Ping Zpofe
+    zpofe_id = 1399949855799119952
+    ping_message += f"💀 <@{zpofe_id}> (Zpofe)\n"
 
-    # Ping Drow if admin role is set, or replace with Drow's user ID
+    # Ping Drow
     if BotConfig.ADMIN_ROLE_ID:
-        ping_message += f"💎 <@&{BotConfig.ADMIN_ROLE_ID}> (Drow)"
+        ping_message += f"⚡ <@&{BotConfig.ADMIN_ROLE_ID}> (Drow)"
     else:
-        drow_id = 123456789  # Replace with Drow's actual user ID when available
-        ping_message += f"💎 <@{drow_id}> (Drow)"
+        drow_id = 123456789
+        ping_message += f"⚡ <@{drow_id}> (Drow)"
 
-    ping_message += "\n\n**A customer is ready to purchase! Please assist them promptly.**"
+    ping_message += "\n\n**Customer ready to do business! Handle this shit.**"
 
     await channel.send(ping_message)
 
     # Add ticket management buttons
     view = TicketManagementView()
     management_embed = discord.Embed(
-        title="🛠️ Ticket Management",
-        description="**Admin Controls**",
-        color=0x9b59b6
+        title="🛠️ Ticket Controls",
+        description="**Staff Controls**",
+        color=0xDAA520
     )
     management_embed.add_field(
         name="🔒 Close Ticket",
-        value="Close this ticket and delete the channel",
+        value="Close this ticket and delete channel",
         inline=True
     )
     management_embed.add_field(
-        name="✅ Mark Completed",
-        value="Mark the order as completed",
+        name="✅ Mark Done",
+        value="Mark the order as complete",
         inline=True
     )
 
     await channel.send(embed=management_embed, view=view)
 
-# Slash Commands
-@bot.tree.command(name="setup", description="Setup the STK Shop interface for everyone to use")
-async def setup_shop(interaction: discord.Interaction):
-    """Setup the STK Shop interface - Creates a persistent shop that everyone can interact with"""
+# Captcha generation function
+def generate_captcha():
+    """Generate a simple captcha image with text"""
+    # Generate random 5-character string
+    captcha_text = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
+
+    # Create image
+    width, height = 200, 80
+    image = Image.new('RGB', (width, height), color='white')
+    draw = ImageDraw.Draw(image)
+
+    # Try to use a system font, fallback to default
     try:
-        # Check if user has admin permissions
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
+    except:
+        font = ImageFont.load_default()
+
+    # Add noise lines
+    for _ in range(5):
+        x1, y1 = random.randint(0, width), random.randint(0, height)
+        x2, y2 = random.randint(0, width), random.randint(0, height)
+        draw.line([(x1, y1), (x2, y2)], fill='lightgray', width=1)
+
+    # Draw text with slight variations
+    for i, char in enumerate(captcha_text):
+        x = 20 + i * 30 + random.randint(-5, 5)
+        y = 20 + random.randint(-5, 5)
+        color = (random.randint(0, 100), random.randint(0, 100), random.randint(0, 100))
+        draw.text((x, y), char, font=font, fill=color)
+
+    # Add noise dots
+    for _ in range(50):
+        x, y = random.randint(0, width), random.randint(0, height)
+        draw.point((x, y), fill='gray')
+
+    # Save to bytes
+    img_byte_arr = BytesIO()
+    image.save(img_byte_arr, format='PNG')
+    img_byte_arr.seek(0)
+
+    return captcha_text, img_byte_arr
+
+# Verification View
+class VerificationView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label='🔐 VERIFY YOURSELF', style=discord.ButtonStyle.primary, custom_id='start_verification')
+    async def start_verification(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            user_id = interaction.user.id
+
+            # Check if user already has verified role
+            verified_role = interaction.guild.get_role(VERIFICATION_CONFIG["verified_role_id"])
+            if verified_role and verified_role in interaction.user.roles:
+                await interaction.response.send_message("✅ You're already verified!", ephemeral=True)
+                return
+
+            # Check attempt count
+            if user_id not in verification_attempts:
+                verification_attempts[user_id] = 0
+
+            if verification_attempts[user_id] >= VERIFICATION_CONFIG["max_attempts"]:
+                await handle_verification_failure(interaction, "too_many_attempts")
+                return
+
+            # Generate captcha
+            captcha_text, captcha_image = generate_captcha()
+            pending_verifications[user_id] = captcha_text
+
+            # Create verification embed
+            embed = discord.Embed(
+                title="💀 STK VERIFICATION 💀",
+                description="**Type what you see in the image**\n\n🔥 **CAPTCHA CHALLENGE** 🔥\n\nProve you're real to access the server",
+                color=0x000000
+            )
+
+            embed.add_field(
+                name="📋 VERIFICATION RULES",
+                value="💀 **Type EXACTLY what you see**\n⚡ **Case sensitive**\n🔥 **2 minutes max**\n👑 **Wrong answer = timeout**",
+                inline=False
+            )
+
+            embed.set_footer(text=f"Attempt {verification_attempts[user_id] + 1}/{VERIFICATION_CONFIG['max_attempts']} • STK Security • Real members only")
+
+            # Send captcha
+            file = discord.File(captcha_image, filename="captcha.png")
+            embed.set_image(url="attachment://captcha.png")
+
+            await interaction.response.send_message(embed=embed, file=file, ephemeral=True)
+
+            # Wait for response
+            def check(m):
+                return m.author.id == user_id and isinstance(m.channel, discord.DMChannel)
+
+            try:
+                # Try to send DM for response
+                dm_channel = await interaction.user.create_dm()
+                await dm_channel.send("**Reply with the captcha text here:**")
+
+                response = await bot.wait_for('message', check=check, timeout=120.0)
+
+                # Check captcha
+                if response.content.upper() == captcha_text.upper():
+                    await handle_verification_success(interaction)
+                else:
+                    verification_attempts[user_id] += 1
+                    await handle_verification_failure(interaction, "wrong_answer")
+
+            except asyncio.TimeoutError:
+                verification_attempts[user_id] += 1
+                await handle_verification_failure(interaction, "timeout")
+            except discord.Forbidden:
+                # Can't DM user, try verification channel
+                verification_channel = interaction.guild.get_channel(1406083380591722668)
+                if verification_channel:
+                    await verification_channel.send(f"❌ {interaction.user.mention} **Can't send DM!** Enable DMs from server members to complete verification.")
+                await interaction.followup.send("❌ **Can't send DM!** Enable DMs from server members to complete verification.", ephemeral=True)
+
+        except Exception as e:
+            logger.error(f"Error in verification: {e}")
+            await interaction.followup.send("❌ Verification system error. Contact staff.", ephemeral=True)
+
+async def handle_verification_success(interaction):
+    """Handle successful verification"""
+    try:
+        # Add verified role
+        verified_role = interaction.guild.get_role(VERIFICATION_CONFIG["verified_role_id"])
+        if verified_role:
+            await interaction.user.add_roles(verified_role, reason="Passed verification")
+
+        # Clean up
+        user_id = interaction.user.id
+        if user_id in verification_attempts:
+            del verification_attempts[user_id]
+        if user_id in pending_verifications:
+            del pending_verifications[user_id]
+
+        # Success message
+        success_embed = discord.Embed(
+            title="💀 WELCOME TO STK 💀",
+            description="**Verification successful!**\n\n🔥 **You're now a verified member** 🔥",
+            color=0x000000
+        )
+        success_embed.add_field(
+            name="🎉 ACCESS GRANTED",
+            value="💯 **All channels unlocked**\n⚡ **Welcome to the community**\n👑 **Enjoy STK Supply**",
+            inline=False
+        )
+
+        try:
+            dm_channel = await interaction.user.create_dm()
+            await dm_channel.send(embed=success_embed)
+        except:
+            pass
+
+        await interaction.followup.send("✅ **Verification successful!** Welcome to the server.", ephemeral=True)
+
+    except Exception as e:
+        logger.error(f"Error in verification success: {e}")
+
+async def handle_verification_failure(interaction, reason):
+    """Handle failed verification"""
+    try:
+        user_id = interaction.user.id
+        guild = interaction.guild
+
+        # Timeout user
+        timeout_until = discord.utils.utcnow() + datetime.timedelta(seconds=VERIFICATION_CONFIG["timeout_duration"])
+        await interaction.user.timeout(timeout_until, reason=f"Verification failure: {reason}")
+
+        # Create alert ticket
+        await create_security_alert(guild, interaction.user, reason)
+
+        # Send failure message
+        failure_embed = discord.Embed(
+            title="💀 VERIFICATION FAILED 💀",
+            description="**Access denied - You ain't real**",
+            color=0xff0000
+        )
+
+        if reason == "too_many_attempts":
+            failure_embed.add_field(
+                name="🚫 TOO MANY ATTEMPTS",
+                value="❌ **You failed too many times**\n\n💀 **Suspicious activity detected**\n🔥 **You have been timed out**",
+                inline=False
+            )
+        elif reason == "wrong_answer":
+            failure_embed.add_field(
+                name="❌ WRONG ANSWER",
+                value=f"💀 **Incorrect captcha answer**\n\n⚡ **Attempts: {verification_attempts[user_id]}/{VERIFICATION_CONFIG['max_attempts']}**\n🔥 **You have been timed out**",
+                inline=False
+            )
+        elif reason == "timeout":
+            failure_embed.add_field(
+                name="⏰ VERIFICATION TIMEOUT",
+                value="💀 **You took too long**\n\n🔥 **Please respond faster**\n⚡ **You have been timed out**",
+                inline=False
+            )
+
+        failure_embed.add_field(
+            name="🔒 SECURITY ALERT",
+            value="👑 **Staff been notified**\n💀 **Sus activity detected**",
+            inline=False
+        )
+
+        try:
+            await interaction.followup.send(embed=failure_embed, ephemeral=True)
+        except:
+            pass
+
+    except Exception as e:
+        logger.error(f"Error in verification failure: {e}")
+
+async def create_security_alert(guild, user, reason):
+    """Create security alert ticket for failed verification"""
+    try:
+        # Create ticket category if it doesn't exist
+        category = discord.utils.get(guild.categories, name="🚨・SECURITY-ALERTS")
+        if not category:
+            try:
+                category = await guild.create_category("🚨・SECURITY-ALERTS")
+            except discord.Forbidden:
+                logger.error("No permission to create security alert category")
+                return
+
+        # Create alert channel
+        alert_name = f"security-alert-{user.name}-{datetime.datetime.now().strftime('%m%d-%H%M')}"
+
+        # Set permissions
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        }
+
+        # Add alert users
+        alert_user_1 = guild.get_member(VERIFICATION_CONFIG["alert_user_1"])
+        alert_user_2 = guild.get_member(VERIFICATION_CONFIG["alert_user_2"])
+
+        if alert_user_1:
+            overwrites[alert_user_1] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        if alert_user_2:
+            overwrites[alert_user_2] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+
+        alert_channel = await guild.create_text_channel(
+            alert_name,
+            category=category,
+            overwrites=overwrites,
+            topic=f"Security alert for {user.display_name}"
+        )
+
+        # Send alert embed
+        alert_embed = discord.Embed(
+            title="🚨 SECURITY ALERT",
+            description="**Verification failure detected**",
+            color=0xff0000,
+            timestamp=datetime.datetime.utcnow()
+        )
+
+        alert_embed.add_field(
+            name="👤 User",
+            value=f"{user.mention}\n`{user.id}`\n{user.display_name}",
+            inline=True
+        )
+
+        alert_embed.add_field(
+            name="📅 Account Age",
+            value=f"<t:{int(user.created_at.timestamp())}:R>",
+            inline=True
+        )
+
+        alert_embed.add_field(
+            name="📊 Join Date",
+            value=f"<t:{int(user.joined_at.timestamp())}:R>",
+            inline=True
+        )
+
+        reason_text = {
+            "too_many_attempts": "❌ **TOO MANY FAILED ATTEMPTS**\nUser exceeded maximum verification attempts.",
+            "wrong_answer": "❌ **WRONG CAPTCHA ANSWER**\nUser provided incorrect captcha response.",
+            "timeout": "⏰ **VERIFICATION TIMEOUT**\nUser failed to respond within time limit.",
+            "suspicious": "🤖 **SUSPICIOUS BEHAVIOR**\nAutomatic bot detection triggered."
+        }
+
+        alert_embed.add_field(
+            name="⚠️ Failure Reason",
+            value=reason_text.get(reason, "Unknown reason"),
+            inline=False
+        )
+
+        alert_embed.add_field(
+            name="🔒 Actions Taken",
+            value=f"• User timed out for {VERIFICATION_CONFIG['timeout_duration']//60} minutes\n• Security alert created\n• Staff notified",
+            inline=False
+        )
+
+        alert_embed.set_thumbnail(url=user.display_avatar.url)
+        alert_embed.set_footer(text="STK Security System")
+
+        # Send alert with management buttons
+        view = SecurityAlertView(user.id)
+        await alert_channel.send(f"🚨 <@{VERIFICATION_CONFIG['alert_user_1']}> <@{VERIFICATION_CONFIG['alert_user_2']}>", embed=alert_embed, view=view)
+
+    except Exception as e:
+        logger.error(f"Error creating security alert: {e}")
+
+# Security alert management view
+class SecurityAlertView(discord.ui.View):
+    def __init__(self, user_id):
+        super().__init__(timeout=None)
+        self.user_id = user_id
+
+    @discord.ui.button(label='🔨 BAN USER', style=discord.ButtonStyle.danger, custom_id='ban_user')
+    async def ban_user(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            user = interaction.guild.get_member(self.user_id)
+            if user:
+                await user.ban(reason="Security verification failure - Suspicious activity")
+                await interaction.response.send_message(f"✅ **{user.display_name}** has been banned for verification failure.", ephemeral=False)
+            else:
+                await interaction.response.send_message("❌ User not found in server.", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Error banning user: {e}", ephemeral=True)
+
+    @discord.ui.button(label='👢 KICK USER', style=discord.ButtonStyle.secondary, custom_id='kick_user')
+    async def kick_user(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            user = interaction.guild.get_member(self.user_id)
+            if user:
+                await user.kick(reason="Security verification failure - Suspicious activity")
+                await interaction.response.send_message(f"✅ **{user.display_name}** has been kicked for verification failure.", ephemeral=False)
+            else:
+                await interaction.response.send_message("❌ User not found in server.", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Error kicking user: {e}", ephemeral=True)
+
+    @discord.ui.button(label='🔓 REMOVE TIMEOUT', style=discord.ButtonStyle.success, custom_id='remove_timeout')
+    async def remove_timeout(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            user = interaction.guild.get_member(self.user_id)
+            if user:
+                await user.timeout(None, reason="Timeout removed by staff")
+                await interaction.response.send_message(f"✅ **{user.display_name}**'s timeout has been removed.", ephemeral=False)
+            else:
+                await interaction.response.send_message("❌ User not found in server.", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Error removing timeout: {e}", ephemeral=True)
+
+# Member join event
+@bot.event
+async def on_member_join(member):
+    """Handle new member joins"""
+    try:
+        # Check if verification system is enabled
+        verified_role = member.guild.get_role(VERIFICATION_CONFIG["verified_role_id"])
+        if not verified_role:
+            return
+
+        # Send welcome message with verification
+        try:
+            embed = discord.Embed(
+                title="💀 WELCOME TO STK 💀",
+                description=f"**Welcome to the server!**\n\n🔥 **VERIFICATION REQUIRED** 🔥\n\nComplete verification to get access",
+                color=0x000000
+            )
+
+            embed.add_field(
+                name="🛡️ SECURITY CHECK",
+                value="💀 **Real members only** - No bots, no fake accounts\n\n⚡ **Click below to start verification**",
+                inline=False
+            )
+
+            embed.add_field(
+                name="⚠️ VERIFICATION RULES",
+                value="💯 **2 minutes to complete**\n🔥 **3 attempts max**\n⚡ **Fail = timeout**\n👑 **Staff alerts for suspicious activity**",
+                inline=False
+            )
+
+            embed.set_thumbnail(url=member.display_avatar.url)
+            embed.set_footer(text="STK Security • Real member verification • Professional service")
+
+            view = VerificationView()
+
+            # Try to send DM first
+            try:
+                dm_channel = await member.create_dm()
+                await dm_channel.send(embed=embed, view=view)
+            except discord.Forbidden:
+                # If DM fails, send in the specific verification channel
+                verification_channel = member.guild.get_channel(1406083380591722668)
+                if verification_channel:
+                    await verification_channel.send(f"{member.mention}", embed=embed, view=view)
+
+        except Exception as e:
+            logger.error(f"Error sending verification message: {e}")
+
+    except Exception as e:
+        logger.error(f"Error in on_member_join: {e}")
+
+# Verification setup command
+@bot.tree.command(name="setup_verification", description="Setup the verification system (Admin only)")
+async def setup_verification(interaction: discord.Interaction):
+    """Setup verification system"""
+    try:
+        # Check permissions
+        has_permission = False
+        if interaction.user.guild_permissions.manage_channels:
+            has_permission = True
+
+        if not has_permission:
+            await interaction.response.send_message("❌ You need 'Manage Channels' permission to setup verification.", ephemeral=True)
+            return
+
+        await interaction.response.send_message("🔄 Setting up verification system...", ephemeral=True)
+
+        # Get verification channel
+        guild = interaction.guild
+        verification_channel = guild.get_channel(1406083380591722668)
+
+        if not verification_channel:
+            await interaction.edit_original_response(content="❌ **Verification channel not found!** Make sure the channel exists.")
+            return
+
+        # Send verification embed
+        embed = discord.Embed(
+            title="💀 STK VERIFICATION 💀",
+            description="**Real members only - No bots allowed**\n\n🔥 **SECURITY CHECK REQUIRED** 🔥\n\nComplete verification to access the server",
+            color=0x000000
+        )
+
+        embed.add_field(
+            name="🛡️ SECURITY FEATURES",
+            value="💀 **Anti-bot protection**\n⚡ **Real person verification**\n🔥 **Auto-timeout for failures**\n👑 **Staff alerts for suspicious activity**",
+            inline=False
+        )
+
+        embed.add_field(
+            name="📋 HOW TO GET ACCESS",
+            value="1️⃣ **Click** the verification button\n2️⃣ **Complete** the captcha challenge\n3️⃣ **Get access** to all channels\n\n💯 **Simple verification process**",
+            inline=False
+        )
+
+        embed.add_field(
+            name="👑 STK SECURITY",
+            value="💀 **3 attempts max**\n⚡ **2 minute time limit**\n🚫 **Failures = timeout**\n🔥 **Real members welcome**",
+            inline=True
+        )
+
+        embed.set_footer(text="STK Security • Real member verification • Professional service")
+
+        view = VerificationView()
+        await verification_channel.send(embed=embed, view=view)
+
+        # Set up channel permissions for verification-only access
+        verified_role = guild.get_role(VERIFICATION_CONFIG["verified_role_id"])
+        if verified_role:
+            channels_updated = 0
+            permission_errors = 0
+
+            # Process all channels in the server
+            for channel in guild.channels:
+                if channel.id != verification_channel.id:  # Don't modify verification channel
+                    try:
+                        # Get existing overwrites to preserve admin permissions
+                        existing_overwrites = channel.overwrites.copy()
+
+                        # Set @everyone to completely hide channel
+                        existing_overwrites[guild.default_role] = discord.PermissionOverwrite(
+                            read_messages=False,
+                            view_channel=False,
+                            send_messages=False,
+                            connect=False,
+                            speak=False,
+                            add_reactions=False,
+                            embed_links=False,
+                            attach_files=False,
+                            use_external_emojis=False,
+                            manage_messages=False
+                        )
+
+                        # Give verified role full access
+                        existing_overwrites[verified_role] = discord.PermissionOverwrite(
+                            read_messages=True,
+                            view_channel=True,
+                            send_messages=True,
+                            connect=True,
+                            speak=True,
+                            add_reactions=True,
+                            embed_links=True,
+                            attach_files=True,
+                            use_external_emojis=True,
+                            read_message_history=True
+                        )
+
+                        # Ensure bot has full access
+                        existing_overwrites[guild.me] = discord.PermissionOverwrite(
+                            read_messages=True,
+                            view_channel=True,
+                            send_messages=True,
+                            connect=True,
+                            speak=True,
+                            manage_messages=True,
+                            embed_links=True,
+                            attach_files=True,
+                            add_reactions=True,
+                            use_external_emojis=True,
+                            read_message_history=True,
+                            manage_roles=True
+                        )
+
+                        # Apply overwrites
+                        await channel.edit(overwrites=existing_overwrites)
+                        channels_updated += 1
+
+                        # Small delay to avoid rate limits
+                        await asyncio.sleep(0.1)
+
+                    except discord.Forbidden:
+                        permission_errors += 1
+                        logger.warning(f"No permission to edit channel: {channel.name}")
+                        continue
+                    except Exception as e:
+                        permission_errors += 1
+                        logger.error(f"Error setting permissions for {channel.name}: {e}")
+                        continue
+
+            # Set up verification channel with proper permissions
+            verification_overwrites = {
+                guild.default_role: discord.PermissionOverwrite(
+                    read_messages=True,
+                    view_channel=True,
+                    send_messages=False,
+                    add_reactions=False,
+                    connect=False,
+                    embed_links=False,
+                    attach_files=False,
+                    use_external_emojis=False
+                ),
+                verified_role: discord.PermissionOverwrite(
+                    read_messages=True,
+                    view_channel=True,
+                    send_messages=True,
+                    add_reactions=True,
+                    embed_links=True,
+                    attach_files=True,
+                    use_external_emojis=True
+                ),
+                guild.me: discord.PermissionOverwrite(
+                    read_messages=True,
+                    view_channel=True,
+                    send_messages=True,
+                    manage_messages=True,
+                    embed_links=True,
+                    attach_files=True,
+                    add_reactions=True,
+                    use_external_emojis=True,
+                    manage_roles=True
+                )
+            }
+
+            try:
+                await verification_channel.edit(overwrites=verification_overwrites)
+            except Exception as e:
+                logger.error(f"Error setting verification channel permissions: {e}")
+
+            # Auto-verify all existing members who don't have the role
+            members_verified = 0
+            verification_errors = 0
+
+            for member in guild.members:
+                if not member.bot and verified_role not in member.roles:
+                    try:
+                        await member.add_roles(verified_role, reason="Auto-verification for existing members during setup")
+                        members_verified += 1
+                        # Small delay to avoid rate limits
+                        await asyncio.sleep(0.2)
+                    except discord.Forbidden:
+                        verification_errors += 1
+                        logger.warning(f"No permission to give role to: {member.display_name}")
+                        continue
+                    except Exception as e:
+                        verification_errors += 1
+                        logger.error(f"Error verifying member {member.display_name}: {e}")
+                        continue
+
+            # Create detailed response
+            response_parts = [
+                "✅ **STK Verification System Activated!**",
+                "",
+                f"🔒 **Channel Security:** {channels_updated} channels secured",
+                f"👥 **Members Verified:** {members_verified} existing members auto-verified",
+                f"⚡ **Verification Channel:** Set up and ready",
+                "💀 **Security Level:** Maximum protection active"
+            ]
+
+            if permission_errors > 0:
+                response_parts.append(f"⚠️ **Note:** {permission_errors} channels couldn't be modified (permission issues)")
+
+            if verification_errors > 0:
+                response_parts.append(f"⚠️ **Note:** {verification_errors} members couldn't be auto-verified (permission issues)")
+
+            response_parts.extend([
+                "",
+                "🔥 **SECURITY STATUS:**",
+                "• Unverified users see ONLY verification channel",
+                "• All other channels completely hidden",
+                "• Existing members automatically verified",
+                "• New members must complete verification",
+                "",
+                "👑 **Real YNs only - Security tight!**"
+            ])
+
+            await interaction.edit_original_response(content="\n".join(response_parts))
+        else:
+            await interaction.edit_original_response(content="❌ **Verified role not found!** Check the role ID in config.")
+
+    except Exception as e:
+        logger.error(f"Error in setup_verification: {e}")
+        await interaction.edit_original_response(content="❌ Error setting up verification system.")
+
+# Setup shop command
+@bot.tree.command(name="setup", description="Setup the STK Shop for everyone to use")
+async def setup_shop(interaction: discord.Interaction):
+    """Setup the STK Shop interface"""
+    try:
+        # Check permissions
         has_permission = False
         if interaction.user.guild_permissions.manage_channels:
             has_permission = True
@@ -1075,41 +1707,30 @@ async def setup_shop(interaction: discord.Interaction):
             has_permission = True
 
         if not has_permission:
-            await interaction.response.send_message("❌ You need 'Manage Channels' permission or Admin role to setup the shop.", ephemeral=True)
+            await interaction.response.send_message("❌ You need 'Manage Channels' permission or admin role to setup the shop.", ephemeral=True)
             return
 
-        # Respond immediately to avoid timeout
-        await interaction.response.send_message("🔄 Setting up STK Shop...", ephemeral=True)
+        await interaction.response.send_message("🔄 Setting up STK Supply...", ephemeral=True)
 
-        view = PersistentSTKShopView() # Use the persistent view
+        view = PersistentSTKShopView()
         embed = view.create_shop_embed()
 
-        # Add setup success message to embed
-        embed.add_field(
-            name="🚀 SHOP SETUP COMPLETE",
-            value="✅ Shop is now live and ready for customers!\n🔄 Interface stays active 24/7\n👥 Everyone can interact with it",
-            inline=False
-        )
 
-        # Send the shop interface publicly so everyone can use it
+
         await interaction.channel.send(embed=embed, view=view)
-
-        # Update the original response with success message
-        await interaction.edit_original_response(content="✅ **STK Shop has been successfully setup!** The shop interface is now live and available for all customers to use 24/7.")
+        await interaction.edit_original_response(content="✅ **STK Supply updated!** All changes are live.")
 
     except discord.NotFound:
-        logger.error("Interaction expired - Discord API issue")
+        logger.error("Interaction expired")
     except Exception as e:
         logger.error(f"Error in setup_shop command: {e}")
         try:
             if not interaction.response.is_done():
-                await interaction.response.send_message("❌ An error occurred while setting up the shop.", ephemeral=True)
+                await interaction.response.send_message("❌ Some shit went wrong during setup.", ephemeral=True)
             else:
-                await interaction.edit_original_response(content="❌ An error occurred while setting up the shop.")
+                await interaction.edit_original_response(content="❌ Some shit went wrong during setup.")
         except discord.NotFound:
-            logger.error("Could not send error message - interaction expired")
-        except Exception as edit_error:
-            logger.error(f"Could not edit response: {edit_error}")
+            logger.error("Could not send error message")
 
 @bot.tree.command(name="clear", description="Delete bot messages from this channel")
 @app_commands.describe(
@@ -1118,13 +1739,12 @@ async def setup_shop(interaction: discord.Interaction):
 async def clear_messages(interaction: discord.Interaction, amount: int = 10):
     """Delete bot messages from the current channel"""
     try:
-        # Limit the amount to prevent abuse
         if amount > 100:
             amount = 100
         elif amount < 1:
             amount = 1
 
-        # Check if user has manage messages permission or admin role
+        # Check permissions
         has_permission = False
         if interaction.user.guild_permissions.manage_messages:
             has_permission = True
@@ -1132,42 +1752,37 @@ async def clear_messages(interaction: discord.Interaction, amount: int = 10):
             has_permission = True
 
         if not has_permission:
-            await interaction.response.send_message("❌ You need 'Manage Messages' permission or Admin role to use this command.", ephemeral=True)
+            await interaction.response.send_message("❌ You need 'Manage Messages' permission or admin role to use this.", ephemeral=True)
             return
 
-        await interaction.response.send_message(f"🧹 Clearing up to {amount} bot messages...", ephemeral=True)
+        await interaction.response.send_message(f"🧹 Clearing up to {amount} messages...", ephemeral=True)
 
-        # Get messages from the channel
         messages_deleted = 0
-        async for message in interaction.channel.history(limit=500):  # Check last 500 messages
+        async for message in interaction.channel.history(limit=500):
             if messages_deleted >= amount:
                 break
 
-            # Only delete messages from this bot
             if message.author == bot.user:
                 try:
                     await message.delete()
                     messages_deleted += 1
-                    await asyncio.sleep(0.5)  # Rate limit protection
+                    await asyncio.sleep(0.5)
                 except discord.errors.NotFound:
-                    # Message was already deleted
                     continue
                 except discord.errors.Forbidden:
-                    # Bot doesn't have permission to delete this message
                     continue
 
-        # Send confirmation
         if messages_deleted > 0:
-            await interaction.followup.send(f"✅ Successfully deleted {messages_deleted} bot message(s).", ephemeral=True)
+            await interaction.followup.send(f"✅ Cleared {messages_deleted} message(s).", ephemeral=True)
         else:
-            await interaction.followup.send("ℹ️ No bot messages found to delete.", ephemeral=True)
+            await interaction.followup.send("ℹ️ No messages found to clear.", ephemeral=True)
 
     except Exception as e:
         logger.error(f"Error in clear command: {e}")
         if not interaction.response.is_done():
-            await interaction.response.send_message("❌ An error occurred while clearing messages.", ephemeral=True)
+            await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
         else:
-            await interaction.followup.send("❌ An error occurred while clearing messages.", ephemeral=True)
+            await interaction.followup.send("❌ Some shit went wrong.", ephemeral=True)
 
 @bot.tree.command(name="addproduct", description="Add a new product (Admin only)")
 @app_commands.describe(
@@ -1179,12 +1794,12 @@ async def clear_messages(interaction: discord.Interaction, amount: int = 10):
 )
 async def add_product(interaction: discord.Interaction, name: str, price: float, stock: int,
                      description: str = None, category: str = "general"):
-    """Add a new product (Admin only)"""
+    """Add a new product"""
     try:
         # Check admin permissions
         if BotConfig.ADMIN_ROLE_ID:
             if not any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
-                await interaction.response.send_message("❌ You don't have permission to use this command.", ephemeral=True)
+                await interaction.response.send_message("❌ You don't have permission for this.", ephemeral=True)
                 return
 
         product_id = bot.db.add_product(name, description, price, stock, None, category)
@@ -1192,8 +1807,8 @@ async def add_product(interaction: discord.Interaction, name: str, price: float,
         if product_id:
             embed = discord.Embed(
                 title="✅ Product Added",
-                description=f"Successfully added **{name}** to the shop!",
-                color=BotConfig.COLORS['success']
+                description=f"Added **{name}** to inventory!",
+                color=0x00ff00
             )
             embed.add_field(name="🆔 Product ID", value=str(product_id), inline=True)
             embed.add_field(name="💰 Price", value=f"${price:.2f}", inline=True)
@@ -1205,9 +1820,9 @@ async def add_product(interaction: discord.Interaction, name: str, price: float,
 
     except Exception as e:
         logger.error(f"Error in add_product command: {e}")
-        await interaction.response.send_message("❌ An error occurred while adding the product.", ephemeral=True)
+        await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
 
-@bot.tree.command(name="setpayment", description="Set payment method for Drow (Drow only)")
+@bot.tree.command(name="setpayment", description="Set payment method for Drow (Admin only)")
 @app_commands.describe(
     cashapp_link="CashApp link (e.g., https://cash.app/$username)",
     qr_code_url="QR code image URL (optional)"
@@ -1215,7 +1830,7 @@ async def add_product(interaction: discord.Interaction, name: str, price: float,
 async def set_payment(interaction: discord.Interaction, cashapp_link: str, qr_code_url: str = None):
     """Set payment method for Drow"""
     try:
-        # Check if user is Drow (admin role) or has admin permissions
+        # Check permissions
         has_permission = False
         if BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
             has_permission = True
@@ -1223,12 +1838,12 @@ async def set_payment(interaction: discord.Interaction, cashapp_link: str, qr_co
             has_permission = True
 
         if not has_permission:
-            await interaction.response.send_message("❌ Only Drow can use this command.", ephemeral=True)
+            await interaction.response.send_message("❌ Only admins can set payment methods.", ephemeral=True)
             return
 
         # Validate cashapp link
         if not cashapp_link.startswith(("https://cash.app/", "http://cash.app/")):
-            await interaction.response.send_message("❌ Please provide a valid CashApp link (e.g., https://cash.app/$username)", ephemeral=True)
+            await interaction.response.send_message("❌ Provide a valid CashApp link", ephemeral=True)
             return
 
         # Update payment methods
@@ -1238,30 +1853,28 @@ async def set_payment(interaction: discord.Interaction, cashapp_link: str, qr_co
 
         embed = discord.Embed(
             title="✅ Payment Method Updated",
-            description="Drow's payment method has been successfully updated!",
-            color=BotConfig.COLORS['success']
+            description="Drow's payment method updated!",
+            color=0x00ff00
         )
         embed.add_field(name="💳 CashApp Link", value=cashapp_link, inline=False)
         if qr_code_url:
-            embed.add_field(name="📱 QR Code", value="QR code image updated", inline=False)
+            embed.add_field(name="📱 QR Code", value="QR code updated", inline=False)
             embed.set_image(url=qr_code_url)
-
-        embed.set_footer(text="Payment method active for all new tickets")
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     except Exception as e:
         logger.error(f"Error in set_payment command: {e}")
-        await interaction.response.send_message("❌ An error occurred while updating payment method.", ephemeral=True)
+        await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
 
 # Ticket management view
 class TicketManagementView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label='🔒 Close Ticket', style=discord.ButtonStyle.danger, custom_id='close_ticket')
+    @discord.ui.button(label='🔒 CLOSE', style=discord.ButtonStyle.danger, custom_id='close_ticket')
     async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Check if user has admin permissions
+        # Check permissions
         has_permission = False
         if BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
             has_permission = True
@@ -1269,29 +1882,27 @@ class TicketManagementView(discord.ui.View):
             has_permission = True
 
         if not has_permission:
-            await interaction.response.send_message("❌ Only admins can close tickets.", ephemeral=True)
+            await interaction.response.send_message("❌ Only staff can close tickets.", ephemeral=True)
             return
 
         embed = discord.Embed(
             title="🔒 Ticket Closed",
-            description="This ticket has been closed. Thank you for your purchase!",
+            description="This order is closed. Thanks for the business!",
             color=0xff0000,
             timestamp=datetime.datetime.utcnow()
         )
-        embed.set_footer(text="STK Services • Ticket System")
 
         await interaction.response.send_message(embed=embed)
 
-        # Wait a moment then delete the channel
         await asyncio.sleep(5)
         try:
-            await interaction.channel.delete(reason="Ticket closed by admin")
+            await interaction.channel.delete(reason="Ticket closed by staff")
         except:
             pass
 
-    @discord.ui.button(label='✅ Mark Completed', style=discord.ButtonStyle.success, custom_id='mark_completed')
+    @discord.ui.button(label='✅ MARK DONE', style=discord.ButtonStyle.success, custom_id='mark_completed')
     async def mark_completed(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Check if user has admin permissions
+        # Check permissions
         has_permission = False
         if BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
             has_permission = True
@@ -1299,21 +1910,20 @@ class TicketManagementView(discord.ui.View):
             has_permission = True
 
         if not has_permission:
-            await interaction.response.send_message("❌ Only admins can mark tickets as completed.", ephemeral=True)
+            await interaction.response.send_message("❌ Only staff can mark orders complete.", ephemeral=True)
             return
 
         embed = discord.Embed(
-            title="✅ Order Completed",
-            description="**This order has been successfully completed!**\n\nThank you for choosing STK Services. We hope you enjoy your purchase!",
+            title="✅ Order Complete",
+            description="**This order has been fulfilled!**\n\nThanks for choosing STK Supply. Enjoy your shit!",
             color=0x00ff00,
             timestamp=datetime.datetime.utcnow()
         )
         embed.add_field(
             name="📞 Support",
-            value="If you have any issues, feel free to contact us again!",
+            value="Hit us up if you have any issues!",
             inline=False
         )
-        embed.set_footer(text="STK Services • Order Fulfillment")
 
         await interaction.response.send_message(embed=embed)
 
@@ -1322,36 +1932,30 @@ class TicketManagementView(discord.ui.View):
 async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
     logger.error(f"Command error: {error}")
 
-    # Handle specific error types
     if isinstance(error, app_commands.CommandInvokeError):
         original_error = error.original
         logger.error(f"Command {interaction.command.name if interaction.command else 'unknown'} failed: {original_error}")
 
-        # Don't handle NotFound errors (Discord API issues)
         if isinstance(original_error, discord.NotFound):
-            logger.error("Discord API NotFound error - interaction may have expired")
+            logger.error("Discord API NotFound error")
             return
 
     try:
-        # Only respond if we haven't already responded and the interaction is still valid
         if not interaction.response.is_done():
-            await interaction.response.send_message("❌ An error occurred while processing your command.", ephemeral=True)
+            await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
         else:
-            # Use followup if we already responded
             try:
-                await interaction.followup.send("❌ An error occurred while processing your command.", ephemeral=True)
+                await interaction.followup.send("❌ Some shit went wrong.", ephemeral=True)
             except discord.NotFound:
-                logger.error("Could not send followup - interaction expired")
+                logger.error("Could not send followup")
     except discord.NotFound:
-        logger.error("Could not respond to interaction - it may have expired")
-    except discord.HTTPException as e:
-        logger.error(f"HTTP error when sending error message: {e}")
+        logger.error("Could not respond to interaction")
     except Exception as e:
-        logger.error(f"Unexpected error in error handler: {e}")
+        logger.error(f"Error in error handler: {e}")
 
 if __name__ == "__main__":
     try:
-        # Add HTTP server for Koyeb health checks
+        # Add HTTP server for health checks
         import threading
         from http.server import HTTPServer, BaseHTTPRequestHandler
         import os
@@ -1364,9 +1968,9 @@ if __name__ == "__main__":
                 self.wfile.write(b'STK Discord Bot is running')
 
             def log_message(self, format, *args):
-                pass  # Suppress HTTP server logs
+                pass
 
-        # Start HTTP server for health checks
+        # Start HTTP server
         port = int(os.getenv('PORT', 5000))
         ports_to_try = [port, 5001, 5002, 5003, 8080]
 
@@ -1385,11 +1989,10 @@ if __name__ == "__main__":
                 continue
 
         if not server_started:
-            logger.warning("Could not start health check server on any available port")
-            # Continue without health check server
+            logger.warning("Could not start health check server")
 
         # Start Discord bot
         bot.run(BotConfig.get_bot_token())
     except Exception as e:
         logger.error(f"Failed to start bot: {e}")
-        print("❌ Bot failed to start. Check your configuration and try again.")
+        print("❌ Bot failed to start. Check your config.")
