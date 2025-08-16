@@ -48,10 +48,21 @@ class ShopBot(commands.Bot):
         except Exception as e:
             logger.error(f'Database connection issue: {e}')
 
-        # Sync slash commands
+        # Sync slash commands with retry logic
         try:
             synced = await self.tree.sync()
             logger.info(f'Synced {len(synced)} command(s)')
+        except discord.HTTPException as e:
+            if e.status == 429:  # Rate limited
+                logger.warning("Rate limited when syncing commands, retrying in 60 seconds...")
+                await asyncio.sleep(60)
+                try:
+                    synced = await self.tree.sync()
+                    logger.info(f'Synced {len(synced)} command(s) after retry')
+                except Exception as retry_error:
+                    logger.error(f'Failed to sync commands after retry: {retry_error}')
+            else:
+                logger.error(f'Failed to sync commands: {e}')
         except Exception as e:
             logger.error(f'Failed to sync commands: {e}')
 
@@ -59,63 +70,52 @@ class ShopBot(commands.Bot):
         """This is called when the bot is starting up"""
         logger.info("Bot is starting up...")
 
+    async def on_command_error(self, ctx, error):
+        """Handle command errors to prevent crashes"""
+        logger.error(f"Command error in {ctx.command}: {error}")
+
+    async def on_error(self, event, *args, **kwargs):
+        """Handle general bot errors"""
+        logger.error(f"Bot error in {event}: {args}")
+
 # Create bot instance
 bot = ShopBot()
 
-# Autocomplete function for user directory
-async def member_autocomplete(interaction: discord.Interaction, current: str):
-    # Auto-detect members when command is used
-    auto_detect_members(interaction.guild)
-
-    # Return all members that match the current input
-    choices = []
-    for member_key, member_data in STK_DIRECTORY.items():
-        member_name = member_data['rank']
-        if current.lower() in member_name.lower():
-            choices.append(app_commands.Choice(name=member_name, value=member_key))
-
-    # Limit to 25 choices (Discord limit)
-    return choices[:25]
-
-# User directory command with autocomplete
-@bot.tree.command(name="user", description="Display STK member directory card")
-@app_commands.describe(member="Select an STK member to view their profile")
-@app_commands.autocomplete(member=member_autocomplete)
-async def user_directory(interaction: discord.Interaction, member: str):
-    """Display professional STK member directory card"""
+# User directory command - shows Discord members only
+@bot.tree.command(name="user", description="Display user profile card")
+@app_commands.describe(user="Select a Discord user to view their profile (optional - defaults to your own card)")
+async def user_directory(interaction: discord.Interaction, user: discord.Member = None):
+    """Display user profile card"""
     try:
-        if member not in STK_DIRECTORY:
-            await interaction.response.send_message("❌ Member not found in directory.", ephemeral=True)
+        # Check if interaction is already responded to or expired
+        if interaction.response.is_done():
             return
 
-        member_data = STK_DIRECTORY[member]
-        user_id = member_data["user_id"]
+        # If no user specified, show interaction user's card
+        target_user = user or interaction.user
 
-        # Try to get the Discord user
-        try:
-            discord_user = await bot.fetch_user(user_id)
-            username = discord_user.display_name
-            avatar_url = discord_user.display_avatar.url
-        except:
-            username = f"User {user_id}"
-            avatar_url = None
+        # Auto-detect members when command is used
+        auto_detect_members(interaction.guild)
 
-        # Create professional member card
+        # Get user's card data (creates new entry if doesn't exist)
+        member_key = get_user_card_key(target_user.id)
+        member_data = STK_DIRECTORY[member_key]
+
+        # Create user profile card
         embed = discord.Embed(
             title=f"{member_data['rank']}",
             description=f"**{member_data['role']}**\n{member_data['description']}",
             color=member_data['color'],
-            timestamp=datetime.datetime.utcnow()
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
 
-        # Set user avatar if available
-        if avatar_url:
-            embed.set_thumbnail(url=avatar_url)
+        # Set user avatar
+        embed.set_thumbnail(url=target_user.display_avatar.url)
 
         # Member info
         embed.add_field(
-            name="👤 Member Info",
-            value=f"**Discord:** <@{user_id}>\n**Status:** {member_data['status']}\n**Joined STK:** {member_data['joined']}",
+            name="👤 User Info",
+            value=f"**Discord:** {target_user.mention}\n**Status:** {member_data['status']}\n**Joined:** {member_data['joined']}",
             inline=True
         )
 
@@ -135,11 +135,11 @@ async def user_directory(interaction: discord.Interaction, member: str):
 
         # STK branding
         embed.set_footer(
-            text="STK Supply • Official Directory • Elite Members Only",
+            text="STK Supply • User Directory",
             icon_url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif"
         )
 
-        # Add custom card image if available, otherwise use default
+        # Add custom card image if available
         card_image = member_data.get("card_image", "https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif")
         embed.set_image(url=card_image)
 
@@ -147,7 +147,13 @@ async def user_directory(interaction: discord.Interaction, member: str):
 
     except Exception as e:
         logger.error(f"Error in user_directory command: {e}")
-        await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
+        # Only try to respond if interaction is still valid
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
+        except (discord.NotFound, discord.HTTPException):
+            # Interaction expired or already handled - this is normal
+            pass
 
 # Payment methods data
 PAYMENT_METHODS = {
@@ -265,7 +271,7 @@ WEAPON_DATA = {
 # Watch data
 WATCH_DATA = {
     "Cartier": {"name": "Cartier", "price": 1},
-    "BlueFaceCartier": {"name": "BlueFace Cartier", "price": 1},
+    "BlueFaceCartier": {"name": "Blue Face Cartier", "price": 1},
     "WhiteRichardMillie": {"name": "White Richard Millie", "price": 1},
     "PinkRichard": {"name": "Pink Richard", "price": 1},
     "GreenRichard": {"name": "Green Richard", "price": 1},
@@ -1323,7 +1329,7 @@ async def send_stk_join_embed(channel, user):
         title=" postureProxy STK TRYOUT STARTED!",
         description="**Your tryout has been created**\n\n**WAIT FOR ALL 3 STK MEMBERS TO JOIN**",
         color=0xFF0000,
-        timestamp=datetime.datetime.utcnow()
+        timestamp=datetime.datetime.now(datetime.timezone.utc)
     )
 
     embed.add_field(
@@ -1334,7 +1340,7 @@ async def send_stk_join_embed(channel, user):
 
     embed.add_field(
         name="⏰ Tryout Time",
-        value=f"<t:{int(datetime.datetime.utcnow().timestamp())}:F>",
+        value=f"<t:{int(datetime.datetime.now(datetime.timezone.utc).timestamp())}:F>",
         inline=True
     )
 
@@ -1487,9 +1493,9 @@ async def send_ticket_embed(channel, user, cart):
     # Create detailed order summary embed
     order_embed = discord.Embed(
         title="📋 ORDER SUMMARY",
-        description=f"**Customer:** {user.mention} (`{user.id}`)\n**Order Time:** <t:{int(datetime.datetime.utcnow().timestamp())}:F>",
+        description=f"**Customer:** {user.mention} (`{user.id}`)\n**Order Time:** <t:{int(datetime.datetime.now(datetime.timezone.utc).timestamp())}:F>",
         color=0x00ff00,
-        timestamp=datetime.datetime.utcnow()
+        timestamp=datetime.datetime.now(datetime.timezone.utc)
     )
 
     # Add packages section
@@ -1769,13 +1775,6 @@ class CardEditModal(discord.ui.Modal):
                 default=current_value,
                 max_length=50
             )
-        elif field_type == "joined":
-            self.field = discord.ui.TextInput(
-                label="Joined Year",
-                placeholder="2025",
-                default=current_value,
-                max_length=10
-            )
         elif field_type == "card_image":
             self.field = discord.ui.TextInput(
                 label="Card Image URL",
@@ -1969,16 +1968,7 @@ class CardEditView(discord.ui.View):
         modal = CardEditModal(self.member_key, "status", current_value, interaction.user.id, self)
         await interaction.response.send_modal(modal)
 
-    @discord.ui.button(label='📅 Edit Joined', style=discord.ButtonStyle.secondary, row=1)
-    async def edit_joined(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Only allow editing own card
-        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
-            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
-            return
-
-        current_value = STK_DIRECTORY[self.member_key].get("joined", "")
-        modal = CardEditModal(self.member_key, "joined", current_value, interaction.user.id, self)
-        await interaction.response.send_modal(modal)
+    # Join date editing removed - this should only be set by admins
 
     @discord.ui.button(label='🖼️ Edit Image', style=discord.ButtonStyle.secondary, row=1)
     async def edit_image(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -2032,11 +2022,11 @@ class CardEditView(discord.ui.View):
     async def preview_card(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Show updated card preview with pending changes
         member_data = STK_DIRECTORY[self.member_key].copy()
-        
+
         # Apply pending changes to preview
         for field, value in self.pending_changes.items():
             member_data[field] = value
-        
+
         user_id = member_data["user_id"]
 
         # Try to get the Discord user
@@ -2053,7 +2043,7 @@ class CardEditView(discord.ui.View):
             title=f"{member_data['rank']}",
             description=f"**{member_data['role']}**\n{member_data['description']}",
             color=member_data['color'],
-            timestamp=datetime.datetime.utcnow()
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
 
         # Set user avatar if available
@@ -2122,7 +2112,7 @@ class CardEditView(discord.ui.View):
                 description="Your card has been successfully updated!",
                 color=0x00FF00
             )
-            
+
             embed.add_field(
                 name="📝 Applied Changes",
                 value="\n".join(changes_list),
@@ -2260,7 +2250,7 @@ async def edit_card(interaction: discord.Interaction):
 
         embed.add_field(
             name="⚠️ Note",
-            value="You can only edit your own card.\nRank cannot be changed.",
+            value="You can only edit your own card.\nRank and join date cannot be changed.",
             inline=False
         )
 
@@ -2271,6 +2261,84 @@ async def edit_card(interaction: discord.Interaction):
     except Exception as e:
         logger.error(f"Error in edit_card command: {e}")
         await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
+
+# Log Users Command - Admin only
+@bot.tree.command(name="logusers", description="Log all user IDs in the server (excludes bots)")
+async def log_users(interaction: discord.Interaction):
+    """Log all user IDs in the server, excluding bots"""
+    try:
+        # Check if interaction is still valid
+        if not interaction.guild:
+            logger.error("No guild found in interaction")
+            return
+
+        # Check permissions - only admins can use this
+        has_permission = False
+        if interaction.user.guild_permissions.manage_guild:
+            has_permission = True
+        elif BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
+            has_permission = True
+
+        if not has_permission:
+            await interaction.response.send_message("❌ You need admin permissions to use this command.", ephemeral=True)
+            return
+
+        # Send initial response immediately
+        await interaction.response.send_message("🔍 Logging all user IDs...", ephemeral=True)
+
+        guild = interaction.guild
+        users_logged = 0
+        total_members = len(guild.members)
+
+        logger.info("=== USER ID LOG START ===")
+        logger.info(f"Server: {guild.name} (ID: {guild.id})")
+        logger.info(f"Total members: {total_members}")
+
+        for member in guild.members:
+            if not member.bot:  # Only log real users, not bots
+                logger.info(f"USER: {member.display_name} ({member.name}) - ID: {member.id}")
+                users_logged += 1
+            else:
+                logger.info(f"BOT (SKIPPED): {member.display_name} - ID: {member.id}")
+
+        logger.info(f"=== USER ID LOG END - {users_logged} users logged ===")
+
+        # Create summary embed
+        embed = discord.Embed(
+            title="📋 USER ID LOG COMPLETE",
+            description="All user IDs have been logged to console",
+            color=0x00FF00,
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
+        )
+
+        embed.add_field(
+            name="📊 Summary",
+            value=f"**Total Members:** {total_members}\n**Users Logged:** {users_logged}\n**Bots Skipped:** {total_members - users_logged}",
+            inline=False
+        )
+
+        embed.add_field(
+            name="📍 Location",
+            value="Check console output for detailed log",
+            inline=False
+        )
+
+        embed.set_footer(text="STK Supply • User ID Logging")
+
+        # Edit the original response with results
+        await interaction.edit_original_response(content="✅ **Logging Complete!**", embed=embed)
+
+    except discord.NotFound:
+        logger.error("Interaction not found - likely expired")
+    except discord.HTTPException as e:
+        logger.error(f"Discord HTTP error in log_users: {e}")
+    except Exception as e:
+        logger.error(f"Error in log_users command: {e}")
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
+        except:
+            logger.error("Could not send error response - interaction may be expired")
 
 
 
@@ -2330,7 +2398,7 @@ class STKTryoutManagementView(discord.ui.View):
             title="✅ ACCEPTED INTO STK",
             description="**Welcome to the gang!**\n\nYou've proven yourself. Welcome to STK!",
             color=0x00ff00,
-            timestamp=datetime.datetime.utcnow()
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
 
         await interaction.response.send_message(embed=embed)
@@ -2352,7 +2420,7 @@ class STKTryoutManagementView(discord.ui.View):
             title="❌ REJECTED",
             description="**You didn't make it**\n\nYou're not STK material. Better luck next time.",
             color=0xff0000,
-            timestamp=datetime.datetime.utcnow()
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
 
         await interaction.response.send_message(embed=embed)
@@ -2374,7 +2442,7 @@ class STKTryoutManagementView(discord.ui.View):
             title="🔒 Tryout Closed",
             description="This tryout is now closed.",
             color=0xff0000,
-            timestamp=datetime.datetime.utcnow()
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
 
         await interaction.response.send_message(embed=embed)
@@ -2525,7 +2593,7 @@ class TicketManagementView(discord.ui.View):
             title="🔒 Ticket Closed",
             description="This order is closed. Thanks for business!",
             color=0xff0000,
-            timestamp=datetime.datetime.utcnow()
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
 
         await interaction.response.send_message(embed=embed)
@@ -2553,7 +2621,7 @@ class TicketManagementView(discord.ui.View):
             title="✅ Order Complete",
             description="**Order fulfilled!**\n\nThanks for choosing STK Supply!",
             color=0x00ff00,
-            timestamp=datetime.datetime.utcnow()
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
 
         await interaction.response.send_message(embed=embed)
@@ -2563,26 +2631,36 @@ class TicketManagementView(discord.ui.View):
 async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
     logger.error(f"Command error: {error}")
 
+    # Handle specific Discord errors that shouldn't trigger responses
     if isinstance(error, app_commands.CommandInvokeError):
         original_error = error.original
         logger.error(f"Command {interaction.command.name if interaction.command else 'unknown'} failed: {original_error}")
 
-        if isinstance(original_error, discord.NotFound):
-            logger.error("Discord API NotFound error")
-            return
+        # Skip responding for these specific errors - these are normal and expected
+        if any(phrase in str(original_error).lower() for phrase in [
+            "already been acknowledged",
+            "interaction has already been acknowledged",
+            "unknown interaction",
+            "interaction expired",
+            "interaction not found"
+        ]):
+            return  # Don't log as error, this is normal
 
+        if isinstance(original_error, discord.NotFound):
+            return  # Don't log as error, this is normal
+
+        if isinstance(original_error, discord.HTTPException) and original_error.status in [404, 40060]:
+            return  # Don't log as error, this is normal
+
+    # Only attempt to respond if we can safely do so
     try:
-        if not interaction.response.is_done():
-            await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
-        else:
-            try:
-                await interaction.followup.send("❌ Some shit went wrong.", ephemeral=True)
-            except discord.NotFound:
-                logger.error("Could not send followup")
-    except discord.NotFound:
-        logger.error("Could not respond to interaction")
+        if hasattr(interaction, 'response') and not interaction.response.is_done():
+            await interaction.response.send_message("❌ Command failed. Please try again.", ephemeral=True)
+    except (discord.NotFound, discord.HTTPException):
+        # These errors are expected when interactions expire - don't log them
+        pass
     except Exception as e:
-        logger.error(f"Error in error handler: {e}")
+        logger.error(f"Unexpected error in error handler: {e}")
 
 if __name__ == "__main__":
     try:
