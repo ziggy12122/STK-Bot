@@ -312,7 +312,6 @@ class WeaponShopView(discord.ui.View):
 
     @discord.ui.button(label='◀️ BACK TO SHOP', style=discord.ButtonStyle.secondary, row=1)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Allow any user to navigate back
         view = PersistentSTKShopView()
         embed = view.create_shop_embed()
         await interaction.response.edit_message(embed=embed, view=view)
@@ -468,7 +467,6 @@ class OtherShopView(discord.ui.View):
             inline=True
         )
 
-        embed.set_footer(text="STK Other • THA BRONX 3 • Premium extras")
         return embed
 
     @discord.ui.button(label='🛒 ADD TO CART', style=discord.ButtonStyle.success, row=2)
@@ -682,36 +680,53 @@ class STKShopView(discord.ui.View):
 
     def create_shop_embed(self):
         embed = discord.Embed(
-            title="🔥 STK SHOP",
-            description="**WELCOME TO STK SHOP**\n*Your trusted street suppliers - Zpofe & Drow*\n\nChoose your category below:",
+            title="🔥 STK PREMIUM SERVICES",
+            description="**🏴‍☠️ WELCOME TO THA BRONX 3 HEADQUARTERS 🏴‍☠️**\n\n*Where legends shop for legendary items*\n\n**👑 PREMIUM QUALITY** • **⚡ INSTANT DELIVERY** • **🔒 SECURE TRANSACTIONS**\n\n*Your trusted street suppliers since day one*\n\n**Choose your category below to start shopping:**",
             color=0x8B0000  # Dark red for STK branding
         )
 
+        # Add STK SHOP header image
+        embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif?ex=68a11fe6&is=689fce66&hm=c6993267511d0fbfe32bf615f5a205279510c9091caa9f217860f1dd9e106ff0&")  # STK SHOP header GIF
+        # Add BEST PRICES footer as thumbnail
+        embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif?ex=68a11fe6&is=689fce66&hm=3d7e0b292626bab621f3dde0fd5a0377f52a31cc9fc81fddcde8db437de66edd&")  # STK SHOP thumbnail GIF
+
         embed.add_field(
-            name="🔫 STK WEAPONS",
-            value="**Fullys, Switches, Buttons, Binarys**\n*Premium package deals available*",
+            name="🔫 WEAPONS ARMORY",
+            value="**🏴‍☠️ Premium Street Arsenal**\n\n*Fullys • Switches • Buttons • Binarys*\n\n**Package deals from $1-$3**\n*Glock series, AR platform, premium switches*\n\n⚡ **Most Popular Category**",
             inline=True
         )
 
         embed.add_field(
-            name="💰 STK CASH",
-            value="**Unlimited Cash Available**\n*Fast delivery guaranteed*",
+            name="💰 FINANCIAL SERVICES",
+            value="**💸 Unlimited Cash Flow**\n\n*Instant wealth delivery system*\n\n**Packages from $1-$2**\n*990K cash, bank extensions, wallet boosts*\n\n🚀 **Lightning Fast Delivery**",
             inline=True
         )
 
         embed.add_field(
-            name="📦 OTHER",
-            value="**Watches, Scripts, Ext**\n*Premium accessories & tools*",
+            name="📦 LUXURY COLLECTION",
+            value="**💎 Premium Accessories**\n\n*Watches • Scripts • Exclusive Tools*\n\n**Starting at $1 each**\n*Cartier, Richard Mille, AP watches*\n\n✨ **Status Symbols**",
             inline=True
         )
 
         embed.add_field(
-            name="🎮 SELLER CARDS",
-            value="🔥 **Zpofe** - Services of all types\n💎 **Drow** - Services for THA BRONX 3",
+            name="👑 YOUR ELITE SUPPLIERS",
+            value="🔥 **ZPOFE** - *The Mastermind*\n• All services specialist • 3+ years experience\n• Script developer & premium trader\n• 24/7 support • Thousands of customers\n\n💎 **DROW** - *The Specialist*\n• THA BRONX 3 expert • Luxury curator\n• Lightning delivery • Professional service\n• Quality guaranteed • Premium focus",
             inline=False
         )
 
-        embed.set_footer(text="STK Services • THA BRONX 3 • Premium Quality")
+        embed.add_field(
+            name="🏆 WHY CHOOSE STK?",
+            value="✅ **5000+** Happy customers\n✅ **2-5 min** Average delivery time\n✅ **99.9%** Success rate\n✅ **24/7** Support availability\n✅ **100%** Satisfaction guarantee\n✅ **Secure** Payment processing",
+            inline=True
+        )
+
+        embed.add_field(
+            name="⚡ GETTING STARTED",
+            value="🎯 **Browse** categories above\n🛒 **Add** items to your cart\n💳 **Checkout** securely\n📞 **Support** ticket created\n⚡ **Delivery** in minutes\n\n*Professional service guaranteed*",
+            inline=True
+        )
+
+        embed.set_footer(text="STK Premium Services • THA BRONX 3 Headquarters • Est. 2024 • Where Legends Shop")
         return embed
 
     @discord.ui.button(label='🔫 WEAPONS', style=discord.ButtonStyle.danger, row=1)
@@ -771,36 +786,53 @@ class PersistentSTKShopView(discord.ui.View):
 
     def create_shop_embed(self):
         embed = discord.Embed(
-            title="🔥 STK SHOP",
-            description="**WELCOME TO STK SHOP**\n*Your trusted street suppliers - Zpofe & Drow*\n\nChoose your category below:",
+            title="🔥 STK PREMIUM SERVICES",
+            description="**🏴‍☠️ WELCOME TO THA BRONX 3 HEADQUARTERS 🏴‍☠️**\n\n*Where legends shop for legendary items*\n\n**👑 PREMIUM QUALITY** • **⚡ INSTANT DELIVERY** • **🔒 SECURE TRANSACTIONS**\n\n*Your trusted street suppliers since day one*\n\n**Choose your category below to start shopping:**",
             color=0x8B0000  # Dark red for STK branding
         )
 
+        # Add STK SHOP header image
+        embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif?ex=68a11fe6&is=689fce66&hm=c6993267511d0fbfe32bf615f5a205279510c9091caa9f217860f1dd9e106ff0&")  # STK SHOP header GIF
+        # Add BEST PRICES footer as thumbnail
+        embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif?ex=68a11fe6&is=689fce66&hm=3d7e0b292626bab621f3dde0fd5a0377f52a31cc9fc81fddcde8db437de66edd&")  # STK SHOP thumbnail GIF
+
         embed.add_field(
-            name="🔫 STK WEAPONS",
-            value="**Fullys, Switches, Buttons, Binarys**\n*Premium package deals available*",
+            name="🔫 WEAPONS ARMORY",
+            value="**🏴‍☠️ Premium Street Arsenal**\n\n*Fullys • Switches • Buttons • Binarys*\n\n**Package deals from $1-$3**\n*Glock series, AR platform, premium switches*\n\n⚡ **Most Popular Category**",
             inline=True
         )
 
         embed.add_field(
-            name="💰 STK CASH",
-            value="**Unlimited Cash Available**\n*Fast delivery guaranteed*",
+            name="💰 FINANCIAL SERVICES",
+            value="**💸 Unlimited Cash Flow**\n\n*Instant wealth delivery system*\n\n**Packages from $1-$2**\n*990K cash, bank extensions, wallet boosts*\n\n🚀 **Lightning Fast Delivery**",
             inline=True
         )
 
         embed.add_field(
-            name="📦 OTHER",
-            value="**Watches, Scripts, Ext**\n*Premium accessories & tools*",
+            name="📦 LUXURY COLLECTION",
+            value="**💎 Premium Accessories**\n\n*Watches • Scripts • Exclusive Tools*\n\n**Starting at $1 each**\n*Cartier, Richard Mille, AP watches*\n\n✨ **Status Symbols**",
             inline=True
         )
 
         embed.add_field(
-            name="🎮 SELLER CARDS",
-            value="🔥 **Zpofe** - Services of all types\n💎 **Drow** - Services for THA BRONX 3",
+            name="👑 YOUR ELITE SUPPLIERS",
+            value="🔥 **ZPOFE** - *The Mastermind*\n• All services specialist • 3+ years experience\n• Script developer & premium trader\n• 24/7 support • Thousands of customers\n\n💎 **DROW** - *The Specialist*\n• THA BRONX 3 expert • Luxury curator\n• Lightning delivery • Professional service\n• Quality guaranteed • Premium focus",
             inline=False
         )
 
-        embed.set_footer(text="STK Services • THA BRONX 3 • Premium Quality")
+        embed.add_field(
+            name="🏆 WHY CHOOSE STK?",
+            value="✅ **5000+** Happy customers\n✅ **2-5 min** Average delivery time\n✅ **99.9%** Success rate\n✅ **24/7** Support availability\n✅ **100%** Satisfaction guarantee\n✅ **Secure** Payment processing",
+            inline=True
+        )
+
+        embed.add_field(
+            name="⚡ GETTING STARTED",
+            value="🎯 **Browse** categories above\n🛒 **Add** items to your cart\n💳 **Checkout** securely\n📞 **Support** ticket created\n⚡ **Delivery** in minutes\n\n*Professional service guaranteed*",
+            inline=True
+        )
+
+        embed.set_footer(text="STK Premium Services • THA BRONX 3 Headquarters • Est. 2024 • Where Legends Shop")
         return embed
 
     # These button callbacks will redirect to the appropriate view for any user
@@ -1046,7 +1078,8 @@ async def setup_shop(interaction: discord.Interaction):
             await interaction.response.send_message("❌ You need 'Manage Channels' permission or Admin role to setup the shop.", ephemeral=True)
             return
 
-        await interaction.response.defer()
+        # Respond immediately to avoid timeout
+        await interaction.response.send_message("🔄 Setting up STK Shop...", ephemeral=True)
 
         view = PersistentSTKShopView() # Use the persistent view
         embed = view.create_shop_embed()
@@ -1059,17 +1092,24 @@ async def setup_shop(interaction: discord.Interaction):
         )
 
         # Send the shop interface publicly so everyone can use it
-        await interaction.followup.send(embed=embed, view=view)
+        await interaction.channel.send(embed=embed, view=view)
 
-        # Send confirmation to admin
-        await interaction.followup.send("✅ **STK Shop has been successfully setup!** The shop interface is now live and available for all customers to use 24/7.", ephemeral=True)
+        # Update the original response with success message
+        await interaction.edit_original_response(content="✅ **STK Shop has been successfully setup!** The shop interface is now live and available for all customers to use 24/7.")
 
+    except discord.NotFound:
+        logger.error("Interaction expired - Discord API issue")
     except Exception as e:
         logger.error(f"Error in setup_shop command: {e}")
-        if not interaction.response.is_done():
-            await interaction.response.send_message("❌ An error occurred while setting up the shop.", ephemeral=True)
-        else:
-            await interaction.followup.send("❌ An error occurred while setting up the shop.", ephemeral=True)
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ An error occurred while setting up the shop.", ephemeral=True)
+            else:
+                await interaction.edit_original_response(content="❌ An error occurred while setting up the shop.")
+        except discord.NotFound:
+            logger.error("Could not send error message - interaction expired")
+        except Exception as edit_error:
+            logger.error(f"Could not edit response: {edit_error}")
 
 @bot.tree.command(name="clear", description="Delete bot messages from this channel")
 @app_commands.describe(
@@ -1137,7 +1177,7 @@ async def clear_messages(interaction: discord.Interaction, amount: int = 10):
     description="Product description",
     category="Product category"
 )
-async def add_product(interaction: discord.Interaction, name: str, price: float, stock: int, 
+async def add_product(interaction: discord.Interaction, name: str, price: float, stock: int,
                      description: str = None, category: str = "general"):
     """Add a new product (Admin only)"""
     try:
@@ -1281,11 +1321,33 @@ class TicketManagementView(discord.ui.View):
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
     logger.error(f"Command error: {error}")
+
+    # Handle specific error types
+    if isinstance(error, app_commands.CommandInvokeError):
+        original_error = error.original
+        logger.error(f"Command {interaction.command.name if interaction.command else 'unknown'} failed: {original_error}")
+
+        # Don't handle NotFound errors (Discord API issues)
+        if isinstance(original_error, discord.NotFound):
+            logger.error("Discord API NotFound error - interaction may have expired")
+            return
+
     try:
+        # Only respond if we haven't already responded and the interaction is still valid
         if not interaction.response.is_done():
-            await interaction.response.send_message("❌ An error occurred while processing the command.", ephemeral=True)
-    except:
-        logger.error("Could not send error message")
+            await interaction.response.send_message("❌ An error occurred while processing your command.", ephemeral=True)
+        else:
+            # Use followup if we already responded
+            try:
+                await interaction.followup.send("❌ An error occurred while processing your command.", ephemeral=True)
+            except discord.NotFound:
+                logger.error("Could not send followup - interaction expired")
+    except discord.NotFound:
+        logger.error("Could not respond to interaction - it may have expired")
+    except discord.HTTPException as e:
+        logger.error(f"HTTP error when sending error message: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error in error handler: {e}")
 
 if __name__ == "__main__":
     try:
@@ -1305,12 +1367,26 @@ if __name__ == "__main__":
                 pass  # Suppress HTTP server logs
 
         # Start HTTP server for health checks
-        port = int(os.getenv('PORT', 8000))
-        server = HTTPServer(('0.0.0.0', port), HealthHandler)
-        server_thread = threading.Thread(target=server.serve_forever)
-        server_thread.daemon = True
-        server_thread.start()
-        logger.info(f"Health check server started on port {port}")
+        port = int(os.getenv('PORT', 5000))
+        ports_to_try = [port, 5001, 5002, 5003, 8080]
+
+        server_started = False
+        for try_port in ports_to_try:
+            try:
+                server = HTTPServer(('0.0.0.0', try_port), HealthHandler)
+                server_thread = threading.Thread(target=server.serve_forever)
+                server_thread.daemon = True
+                server_thread.start()
+                logger.info(f"Health check server started on port {try_port}")
+                server_started = True
+                break
+            except OSError as e:
+                logger.debug(f"Port {try_port} unavailable: {e}")
+                continue
+
+        if not server_started:
+            logger.warning("Could not start health check server on any available port")
+            # Continue without health check server
 
         # Start Discord bot
         bot.run(BotConfig.get_bot_token())
