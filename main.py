@@ -131,6 +131,91 @@ WATCH_DATA = {
     "Iced AP": {"name": "Iced AP", "price": 1}
 }
 
+# Money data with regular and gamepass options
+MONEY_DATA = {
+    "max_money_990k": {"name": "Max Money 990k", "price": 1, "type": "regular"},
+    "max_bank_990k": {"name": "Max Bank 990k", "price": 1, "type": "regular"},
+    "max_money_1600k_gp": {"name": "Max Money 1.6M (Gamepass)", "price": 2, "type": "gamepass"},
+    "max_bank_1600k_gp": {"name": "Max Bank 1.6M (Gamepass)", "price": 2, "type": "gamepass"}
+}
+
+# Package data
+PACKAGE_DATA = {
+    "full_safe": {
+        "name": "FULL SAFE",
+        "price": 3,
+        "description": "Complete safe arsenal",
+        "weapons": ["GoldenButton", "GreenSwitch", "BlueTips/Switch", "OrangeButton", "YellowButtonSwitch", "FullyARP", "FullyDraco", "Fully-MicroAR", "Cyanbutton", "BinaryTrigger"]
+    },
+    "full_bag": {
+        "name": "FULL BAG", 
+        "price": 2,
+        "description": "Complete bag loadout",
+        "weapons": ["100RndTanG19", "300ARG", "VP9Scope", "MasterPiece30", "GSwitch", "G17WittaButton", "G19Switch", "G20Switch"]
+    },
+    "full_trunk": {
+        "name": "FULL TRUNK",
+        "price": 1, 
+        "description": "Complete trunk setup",
+        "weapons": ["G21Switch", "G22 Switch", "G23 Switch", "G40 Switch", "G42 Switch", "Fully-FN", "BinaryARP", "BinaryG17", "BinaryDraco", "CustomAR9"]
+    }
+}
+
+# Package select dropdown
+class PackageSelect(discord.ui.Select):
+    def __init__(self, user_id):
+        self.user_id = user_id
+
+        options = []
+        for package_id, package_info in PACKAGE_DATA.items():
+            options.append(discord.SelectOption(
+                label=package_info['name'],
+                value=package_id,
+                description=f"${package_info['price']} - {package_info['description']}",
+                emoji="📦"
+            ))
+
+        super().__init__(
+            placeholder="Select a package to auto-fill weapons...",
+            min_values=1,
+            max_values=1,
+            options=options
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        try:
+            if self.user_id and interaction.user.id != self.user_id:
+                await interaction.response.send_message("❌ This isn't your shop session!", ephemeral=True)
+                return
+
+            selected_package = self.values[0]
+            package_weapons = set(PACKAGE_DATA[selected_package]["weapons"])
+            
+            # Update view with package weapons selected
+            view = WeaponShopView(interaction.user.id, package_weapons)
+            embed = view.create_weapon_embed()
+            
+            # Add package info to embed
+            package_info = PACKAGE_DATA[selected_package]
+            embed.add_field(
+                name=f"📦 SELECTED PACKAGE: {package_info['name']}",
+                value=f"**${package_info['price']}** - {package_info['description']}\n✅ {len(package_weapons)} weapons auto-selected",
+                inline=False
+            )
+            
+            await interaction.response.edit_message(embed=embed, view=view)
+            
+            # Add package to cart automatically
+            if interaction.user.id not in bot.user_carts:
+                bot.user_carts[interaction.user.id] = {"weapons": set(), "money": set(), "watches": set(), "packages": set(), "hub": None}
+            
+            bot.user_carts[interaction.user.id]["packages"].add(selected_package)
+            
+        except Exception as e:
+            logger.error(f"Error in PackageSelect callback: {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
+
 # Multi-select dropdown for weapons
 class WeaponSelect(discord.ui.Select):
     def __init__(self, selected_weapons=None, user_id=None):
@@ -222,98 +307,6 @@ class WatchSelect(discord.ui.Select):
             if not interaction.response.is_done():
                 await interaction.response.send_message("❌ Some shit went wrong. Try again.", ephemeral=True)
 
-class WeaponShopView(discord.ui.View):
-    def __init__(self, user_id, selected_weapons=None):
-        super().__init__(timeout=180)
-        self.user_id = user_id
-        self.selected_weapons = selected_weapons or set()
-
-        # Add the weapon select dropdown with user_id
-        self.add_item(WeaponSelect(self.selected_weapons, self.user_id))
-
-    def create_weapon_embed(self):
-        embed = discord.Embed(
-            title="🔫 STREET ARSENAL",
-            description="**Essential gear for the streets** • Fully, buttons, switches, binary, AR9\n**$1-$3** Premium setups • Custom builds • Street ready",
-            color=0xFF0000
-        )
-
-        if self.selected_weapons:
-            selected_list = []
-            for weapon_id in self.selected_weapons:
-                weapon_name = WEAPON_DATA[weapon_id]['name']
-                selected_list.append(f"💥 {weapon_name}")
-
-            embed.add_field(
-                name=f"✅ SELECTED ({len(self.selected_weapons)})",
-                value="\n".join(selected_list[:10]) + ("\n..." if len(selected_list) > 10 else ""),
-                inline=True
-            )
-        else:
-            embed.add_field(
-                name="🎯 SELECT YOUR SHIT",
-                value="Pick from dropdown below",
-                inline=True
-            )
-
-        embed.add_field(
-            name="💰 PACKAGES",
-            value="🔥 **FULL SAFE:** $3\n💼 **FULL BAG:** $2\n🚛 **FULL TRUNK:** $1",
-            inline=True
-        )
-
-        embed.set_footer(text="STK Supply • No BS business")
-        return embed
-
-    @discord.ui.button(label='🛒 ADD', style=discord.ButtonStyle.success, emoji='🔥', row=1)
-    async def add_to_cart(self, interaction: discord.Interaction, button: discord.ui.Button):
-        try:
-            if interaction.user.id != self.user_id:
-                await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
-                return
-
-            if not self.selected_weapons:
-                await interaction.response.send_message("❌ Pick some shit first!", ephemeral=True)
-                return
-
-            # Add to cart
-            if interaction.user.id not in bot.user_carts:
-                bot.user_carts[interaction.user.id] = {"weapons": set(), "money": set(), "watches": set(), "hub": None}
-
-            bot.user_carts[interaction.user.id]["weapons"].update(self.selected_weapons)
-
-            await interaction.response.send_message(f"✅ Added {len(self.selected_weapons)} items!", ephemeral=True)
-        except Exception as e:
-            logger.error(f"Error in add_to_cart: {e}")
-            if not interaction.response.is_done():
-                await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
-
-    @discord.ui.button(label='◀️ BACK', style=discord.ButtonStyle.secondary, row=1)
-    async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Always go back to personal shop since this is user-specific
-        view = PersonalSTKShopView(self.user_id)
-        embed = view.create_personal_shop_embed()
-        await interaction.response.edit_message(embed=embed, view=view)
-
-    @discord.ui.button(label='🗑️ CLEAR', style=discord.ButtonStyle.danger, row=1)
-    async def clear_selection(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
-            return
-
-        self.selected_weapons.clear()
-        view = WeaponShopView(interaction.user.id, self.selected_weapons)
-        embed = view.create_weapon_embed()
-        await interaction.response.edit_message(embed=embed, view=view)
-
-# Money data with regular and gamepass options
-MONEY_DATA = {
-    "max_money_990k": {"name": "Max Money 990k", "price": 1, "type": "regular"},
-    "max_bank_990k": {"name": "Max Bank 990k", "price": 1, "type": "regular"},
-    "max_money_1600k_gp": {"name": "Max Money 1.6M (Gamepass)", "price": 2, "type": "gamepass"},
-    "max_bank_1600k_gp": {"name": "Max Bank 1.6M (Gamepass)", "price": 2, "type": "gamepass"}
-}
-
 # Multi-select money options
 class MoneySelect(discord.ui.Select):
     def __init__(self, selected_money=None, user_id=None):
@@ -363,6 +356,111 @@ class MoneySelect(discord.ui.Select):
             logger.error(f"Error in MoneySelect callback: {e}")
             if not interaction.response.is_done():
                 await interaction.response.send_message("❌ Some shit went wrong. Try again.", ephemeral=True)
+
+class WeaponShopView(discord.ui.View):
+    def __init__(self, user_id, selected_weapons=None, show_package_select=False):
+        super().__init__(timeout=180)
+        self.user_id = user_id
+        self.selected_weapons = selected_weapons or set()
+        self.show_package_select = show_package_select
+
+        # Add the weapon select dropdown with user_id
+        self.add_item(WeaponSelect(self.selected_weapons, self.user_id))
+        
+        # Add package select if requested
+        if self.show_package_select:
+            self.add_item(PackageSelect(self.user_id))
+
+    def create_weapon_embed(self):
+        embed = discord.Embed(
+            title="🔫 STREET ARSENAL",
+            description="**Essential gear for the streets** • Fully, buttons, switches, binary, AR9\n**$1-$3** Premium setups • Custom builds • Street ready",
+            color=0xFF0000
+        )
+
+        if self.selected_weapons:
+            selected_list = []
+            for weapon_id in self.selected_weapons:
+                weapon_name = WEAPON_DATA[weapon_id]['name']
+                selected_list.append(f"💥 {weapon_name}")
+
+            embed.add_field(
+                name=f"✅ SELECTED ({len(self.selected_weapons)})",
+                value="\n".join(selected_list[:10]) + ("\n..." if len(selected_list) > 10 else ""),
+                inline=True
+            )
+        else:
+            embed.add_field(
+                name="🎯 SELECT YOUR SHIT",
+                value="Pick from dropdown below",
+                inline=True
+            )
+
+        embed.add_field(
+            name="💰 PACKAGES",
+            value="🔥 **FULL SAFE:** $3\n💼 **FULL BAG:** $2\n🚛 **FULL TRUNK:** $1",
+            inline=True
+        )
+
+        embed.set_footer(text="STK Supply • No BS business")
+        return embed
+
+    @discord.ui.button(label='📦 SELECT PACKAGE', style=discord.ButtonStyle.primary, emoji='📦', row=1)
+    async def select_package(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            if interaction.user.id != self.user_id:
+                await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
+                return
+
+            # Show package selection view
+            view = WeaponShopView(self.user_id, self.selected_weapons, show_package_select=True)
+            embed = view.create_weapon_embed()
+            await interaction.response.edit_message(embed=embed, view=view)
+        except Exception as e:
+            logger.error(f"Error in select_package: {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
+
+    @discord.ui.button(label='🛒 ADD', style=discord.ButtonStyle.success, emoji='🔥', row=1)
+    async def add_to_cart(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            if interaction.user.id != self.user_id:
+                await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
+                return
+
+            if not self.selected_weapons:
+                await interaction.response.send_message("❌ Pick some shit first!", ephemeral=True)
+                return
+
+            # Add to cart
+            if interaction.user.id not in bot.user_carts:
+                bot.user_carts[interaction.user.id] = {"weapons": set(), "money": set(), "watches": set(), "packages": set(), "hub": None}
+
+            bot.user_carts[interaction.user.id]["weapons"].update(self.selected_weapons)
+
+            await interaction.response.send_message(f"✅ Added {len(self.selected_weapons)} items!", ephemeral=True)
+        except Exception as e:
+            logger.error(f"Error in add_to_cart: {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
+
+    @discord.ui.button(label='◀️ BACK', style=discord.ButtonStyle.secondary, row=1)
+    async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Always go back to personal shop since this is user-specific
+        view = PersonalSTKShopView(self.user_id)
+        embed = view.create_personal_shop_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    @discord.ui.button(label='🗑️ CLEAR', style=discord.ButtonStyle.danger, row=1)
+    async def clear_selection(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ This ain't your session!", ephemeral=True)
+            return
+
+        self.selected_weapons.clear()
+        view = WeaponShopView(interaction.user.id, self.selected_weapons)
+        embed = view.create_weapon_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
 
 class MoneyShopView(discord.ui.View):
     def __init__(self, user_id, selected_money=None):
@@ -426,6 +524,15 @@ class MoneyShopView(discord.ui.View):
         embed.set_footer(text="STK Supply • No BS business")
         return embed
 
+    def auto_add_to_cart(self, user_id):
+        """Automatically add selected money to cart"""
+        if user_id not in bot.user_carts:
+            bot.user_carts[user_id] = {"weapons": set(), "money": set(), "watches": set(), "packages": set(), "hub": None}
+
+        if self.selected_money:
+            bot.user_carts[user_id]["money"].update(self.selected_money)
+
+
     @discord.ui.button(label='🛒 ADD', style=discord.ButtonStyle.success, emoji='🔥', row=1)
     async def add_to_cart(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
@@ -438,13 +545,16 @@ class MoneyShopView(discord.ui.View):
 
         # Add to cart
         if interaction.user.id not in bot.user_carts:
-            bot.user_carts[interaction.user.id] = {"weapons": set(), "money": set(), "watches": set(), "hub": None}
+            bot.user_carts[interaction.user.id] = {"weapons": set(), "money": set(), "watches": set(), "packages": set(), "hub": None}
 
         bot.user_carts[interaction.user.id]["money"].update(self.selected_money)
         await interaction.response.send_message(f"✅ Added {len(self.selected_money)} packages!", ephemeral=True)
 
     @discord.ui.button(label='◀️ BACK', style=discord.ButtonStyle.secondary, row=1)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Auto-add items to cart before going back
+        self.auto_add_to_cart(interaction.user.id)
+
         # Always go back to personal shop since this is user-specific
         view = PersonalSTKShopView(self.user_id)
         embed = view.create_personal_shop_embed()
@@ -503,7 +613,7 @@ class OtherShopView(discord.ui.View):
 
         # Add to cart
         if interaction.user.id not in bot.user_carts:
-            bot.user_carts[interaction.user.id] = {"weapons": set(), "money": set(), "watches": set(), "hub": None}
+            bot.user_carts[interaction.user.id] = {"weapons": set(), "money": set(), "watches": set(), "packages": set(), "hub": None}
 
         if self.selected_watch not in bot.user_carts[interaction.user.id]["watches"]:
             bot.user_carts[interaction.user.id]["watches"].add(self.selected_watch)
@@ -511,8 +621,19 @@ class OtherShopView(discord.ui.View):
         else:
             await interaction.response.send_message("Already in cart!", ephemeral=True)
 
+    def auto_add_to_cart(self, user_id):
+        """Automatically add selected watch to cart"""
+        if user_id not in bot.user_carts:
+            bot.user_carts[user_id] = {"weapons": set(), "money": set(), "watches": set(), "packages": set(), "hub": None}
+
+        if self.selected_watch:
+            bot.user_carts[user_id]["watches"].add(self.selected_watch)
+
     @discord.ui.button(label='◀️ BACK', style=discord.ButtonStyle.secondary, row=1)
     async def back_to_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Auto-add items to cart before going back
+        self.auto_add_to_cart(interaction.user.id)
+
         # Always go back to personal shop since this is user-specific
         view = PersonalSTKShopView(self.user_id)
         embed = view.create_personal_shop_embed()
@@ -574,7 +695,7 @@ class CartView(discord.ui.View):
             color=0xFF8C00
         )
 
-        cart = bot.user_carts.get(self.user_id, {"weapons": set(), "money": set(), "watches": set(), "hub": None})
+        cart = bot.user_carts.get(self.user_id, {"weapons": set(), "money": set(), "watches": set(), "packages": set(), "hub": None})
         total = 0
         items = []
 
@@ -601,6 +722,15 @@ class CartView(discord.ui.View):
                 watch_info = WATCH_DATA[watch_id]
                 items.append(f"  • {watch_info['name']} - ${watch_info['price']}")
                 total += watch_info["price"]
+
+        # Packages
+        if cart["packages"]:
+            items.append(f"📦 **PACKAGES** ({len(cart['packages'])})")
+            for package_id in cart["packages"]:
+                if package_id in PACKAGE_DATA:
+                    package_info = PACKAGE_DATA[package_id]
+                    items.append(f"  • {package_info['name']} - ${package_info['price']}")
+                    total += package_info["price"]
 
         if not items:
             embed.add_field(
@@ -631,9 +761,9 @@ class CartView(discord.ui.View):
             await interaction.response.send_message("❌ This ain't your cart!", ephemeral=True)
             return
 
-        cart = bot.user_carts.get(self.user_id, {"weapons": set(), "money": set(), "watches": set(), "hub": None})
+        cart = bot.user_carts.get(self.user_id, {"weapons": set(), "money": set(), "watches": set(), "packages": set(), "hub": None})
 
-        if not any([cart["weapons"], cart["money"], cart["watches"]]):
+        if not any([cart["weapons"], cart["money"], cart["watches"], cart["packages"]]):
             await interaction.response.send_message("❌ Your cart is empty!", ephemeral=True)
             return
 
@@ -654,7 +784,7 @@ class CartView(discord.ui.View):
                 await interaction.response.send_message(f"✅ **Order placed!**\n\nYour channel: {ticket_channel.mention}\n\nYou've been given the customer role!", ephemeral=True)
 
                 # Clear cart after successful ticket creation
-                bot.user_carts[self.user_id] = {"weapons": set(), "money": set(), "watches": set(), "hub": None}
+                bot.user_carts[self.user_id] = {"weapons": set(), "money": set(), "watches": set(), "packages": set(), "hub": None}
             else:
                 await interaction.response.send_message("❌ Couldn't place order. Contact support.", ephemeral=True)
         except Exception as e:
@@ -667,7 +797,7 @@ class CartView(discord.ui.View):
             await interaction.response.send_message("❌ This ain't your cart!", ephemeral=True)
             return
 
-        bot.user_carts[self.user_id] = {"weapons": set(), "money": set(), "watches": set(), "hub": None}
+        bot.user_carts[self.user_id] = {"weapons": set(), "money": set(), "watches": set(), "packages": set(), "hub": None}
         embed = self.create_cart_embed()
         await interaction.response.edit_message(embed=embed, view=self)
 
@@ -778,7 +908,7 @@ class PersonalSTKShopView(discord.ui.View):
             title = f"💀 User's STK Shop 💀"
         else:
             title = f"💀 {user.display_name}'s STK Shop 💀"
-            
+
         embed = discord.Embed(
             title=title,
             description="**🔥 QUALITY** • **⚡ FAST** • **💯 NO BS**",
@@ -806,7 +936,7 @@ class PersonalSTKShopView(discord.ui.View):
 
     @discord.ui.button(label='💰 MONEY', style=discord.ButtonStyle.success, emoji='💵', row=1)
     async def money_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = MoneyShopView(self.user_id)
+        view = MoneyShopView(interaction.user.id)
         embed = view.create_money_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
@@ -1041,7 +1171,7 @@ async def send_stk_join_embed(channel, user):
 
     # Create main STK join embed
     embed = discord.Embed(
-        title="🥊 STK TRYOUT STARTED!",
+        title=" postureProxy STK TRYOUT STARTED!",
         description="**Your tryout has been created**\n\n**WAIT FOR ALL 3 STK MEMBERS TO JOIN**",
         color=0xFF0000,
         timestamp=datetime.datetime.utcnow()
@@ -1177,6 +1307,15 @@ async def send_ticket_embed(channel, user, cart):
     money_list = []
     watches_list = []
 
+    # Process packages first
+    packages_list = []
+    if cart["packages"]:
+        for package_id in cart["packages"]:
+            if package_id in PACKAGE_DATA:
+                package_info = PACKAGE_DATA[package_id]
+                packages_list.append(f"{package_info['name']} - ${package_info['price']}")
+                total += package_info["price"]
+
     # Process weapons
     if cart["weapons"]:
         for weapon_id in cart["weapons"]:
@@ -1198,11 +1337,20 @@ async def send_ticket_embed(channel, user, cart):
 
     # Create detailed order summary embed
     order_embed = discord.Embed(
-        title=" رپور ORDER SUMMARY",
+        title="📋 ORDER SUMMARY",
         description=f"**Customer:** {user.mention} (`{user.id}`)\n**Order Time:** <t:{int(datetime.datetime.utcnow().timestamp())}:F>",
         color=0x00ff00,
         timestamp=datetime.datetime.utcnow()
     )
+
+    # Add packages section
+    if packages_list:
+        packages_text = "\n".join([f"• {package}" for package in packages_list])
+        order_embed.add_field(
+            name=f"📦 PACKAGES ({len(packages_list)})",
+            value=packages_text,
+            inline=False
+        )
 
     # Add weapons section
     if weapons_list:
@@ -1267,7 +1415,7 @@ async def send_ticket_embed(channel, user, cart):
 
     payment_embed.add_field(
         name="📱 PAYMENT STEPS",
-        value="1️⃣ Click payment button below\n2️⃣ Send the exact amount\n3️⃣ Screenshot proof\n4️⃣ Wait for delivery!",
+        value="1️⃣ Click payment button below\n2️⃣ Send the exact amount\n3️⃣ Screenshot proof\n4️⃣ Send proof in this ticket",
         inline=False
     )
 
@@ -1603,44 +1751,6 @@ async def clear_messages(interaction: discord.Interaction, amount: int = 10):
             await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
         else:
             await interaction.followup.send("❌ Some shit went wrong.", ephemeral=True)
-
-@bot.tree.command(name="addproduct", description="Add a new product (Admin only)")
-@app_commands.describe(
-    name="Product name",
-    price="Product price",
-    stock="Initial stock quantity",
-    description="Product description",
-    category="Product category"
-)
-async def add_product(interaction: discord.Interaction, name: str, price: float, stock: int,
-                     description: str = None, category: str = "general"):
-    """Add a new product"""
-    try:
-        # Check admin permissions
-        if BotConfig.ADMIN_ROLE_ID:
-            if not any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
-                await interaction.response.send_message("❌ You don't have permission.", ephemeral=True)
-                return
-
-        product_id = bot.db.add_product(name, description, price, stock, None, category)
-
-        if product_id:
-            embed = discord.Embed(
-                title="✅ Product Added",
-                description=f"Added **{name}** to inventory!",
-                color=0x00ff00
-            )
-            embed.add_field(name="🆔 ID", value=str(product_id), inline=True)
-            embed.add_field(name="💰 Price", value=f"${price:.2f}", inline=True)
-            embed.add_field(name="📦 Stock", value=str(stock), inline=True)
-
-            await interaction.response.send_message(embed=embed)
-        else:
-            await interaction.response.send_message("❌ Failed to add product.", ephemeral=True)
-
-    except Exception as e:
-        logger.error(f"Error in add_product command: {e}")
-        await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
 
 # Payment view with buttons
 class PaymentView(discord.ui.View):
