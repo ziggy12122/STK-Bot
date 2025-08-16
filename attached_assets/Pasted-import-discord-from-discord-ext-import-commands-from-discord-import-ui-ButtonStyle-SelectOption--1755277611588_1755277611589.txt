@@ -1,0 +1,82 @@
+import discord
+from discord.ext import commands
+from discord import ui, ButtonStyle, SelectOption
+
+# Bot setup
+intents = discord.Intents.all()
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+# STK Gun Inventory (customize prices/stock)
+STK_GUNS = {
+    "GoldenButton": {"price": 500, "stock": 10},
+    "GreenSwitch": {"price": 450, "stock": 8},
+    "BlueTips/Switch": {"price": 400, "stock": 15},
+    # Add all other guns here...
+}
+
+# STK Services Menu
+STK_SERVICES = {
+    "MAX MONEY": "500 Robux",
+    "FULL SAFE": "500 Robux",
+    "TRUNK ONLY": "200 Robux",
+    "MAX BANK CASH": "500 Robux",
+}
+
+@bot.event
+async def on_ready():
+    print(f"STK Shop Online as {bot.user}")
+
+# Command: !shop - Displays embedded shop
+@bot.command()
+async def shop(ctx):
+    embed = discord.Embed(
+        title="STK SERVICES | THA BRONX 3",
+        description="**Verified STK Shop**\nReact to purchase.",
+        color=0x2b2d31
+    )
+    embed.set_thumbnail(url="https://i.imgur.com/STK_LOGO.png")  # Replace with your image
+    embed.add_field(
+        name="🔫 GUN INVENTORY",
+        value="\n".join([f"`{gun}` - {data['price']} Robux" for gun, data in STK_GUNS.items()]),
+        inline=False
+    )
+    embed.add_field(
+        name="💰 MONEY SERVICES",
+        value="\n".join([f"`{service}` - {price}" for service, price in STK_SERVICES.items()]),
+        inline=False
+    )
+    embed.set_footer(text="Powered by Zpofe | STK")
+
+    # Add buttons for actions
+    view = ui.View()
+    view.add_item(ui.Button(style=ButtonStyle.green, label="Buy Guns", custom_id="buy_guns"))
+    view.add_item(ui.Button(style=ButtonStyle.blurple, label="Money Services", custom_id="buy_money"))
+    await ctx.send(embed=embed, view=view)
+
+# Button interaction: Create ticket
+@bot.listen()
+async def on_interaction(interaction):
+    if interaction.data.get("custom_id") in ["buy_guns", "buy_money"]:
+        # Create a ticket channel
+        guild = interaction.guild
+        ticket_channel = await guild.create_text_channel(
+            f"ticket-{interaction.user.name}",
+            topic=f"STK Order for {interaction.user.name}"
+        )
+        
+        # Ping user and send instructions
+        embed = discord.Embed(
+            title="STK ORDER TICKET",
+            description=f"{interaction.user.mention}, reply with:\n- **Service/Gun**\n- **Payment Method**\n\nA seller will DM you shortly.",
+            color=0x00ff00
+        )
+        await ticket_channel.send(embed=embed)
+        await interaction.response.send_message(
+            f"Ticket created: {ticket_channel.mention}", 
+            ephemeral=True
+        )
+
+# Run bot (use Replit secrets for token)
+from keep_alive import keep_alive
+keep_alive()
+bot.run(os.getenv("DISCORD_TOKEN"))
