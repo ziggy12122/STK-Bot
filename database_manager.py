@@ -24,8 +24,7 @@ class ShopDatabase:
                         description TEXT,
                         price REAL NOT NULL,
                         stock INTEGER DEFAULT 0,
-                        image_url TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        image_url TEXT
                     )
                 ''')
                 
@@ -46,8 +45,7 @@ class ShopDatabase:
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         user_id INTEGER NOT NULL,
                         total_amount REAL NOT NULL,
-                        status TEXT DEFAULT 'pending',
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        status TEXT DEFAULT 'pending'
                     )
                 ''')
                 

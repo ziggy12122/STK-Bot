@@ -130,9 +130,6 @@ class ShopBot(commands.Bot):
     async def on_member_join(self, member):
         """Handle new member join"""
         try:
-            # Auto-add to directory
-            auto_detect_members(member.guild)
-
             # Assign role to new member
             role_id = 1406402417863430204
             try:
@@ -178,7 +175,7 @@ class ShopBot(commands.Bot):
             )
 
             embed.set_thumbnail(url=member.display_avatar.url)
-            embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif")
+            embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif")
             embed.set_footer(text="STK (Shoot to Kill) • Most Feared Gang • Welcome to the streets", icon_url=member.guild.me.display_avatar.url)
 
             # Send welcome message to general channel or first available channel
@@ -202,42 +199,6 @@ class ShopBot(commands.Bot):
 
         except Exception as e:
             logger.error(f"Error in member join event: {e}")
-
-    async def on_ready(self):
-        logger.info(f'{self.user} has connected to Discord!')
-        logger.info(f'Bot is in {len(self.guilds)} guilds')
-
-        # Test database connection
-        try:
-            test_products = self.db.get_all_products()
-            logger.info(f'Database connected successfully. Found {len(test_products)} products.')
-        except Exception as e:
-            logger.error(f'Database connection issue: {e}')
-
-        # Sync slash commands with retry logic
-        try:
-            synced = await self.tree.sync()
-            logger.info(f'Synced {len(synced)} command(s)')
-        except discord.HTTPException as e:
-            if e.status == 429:  # Rate limited
-                logger.warning("Rate limited when syncing commands, retrying in 60 seconds...")
-                await asyncio.sleep(60)
-                try:
-                    synced = await self.tree.sync()
-                    logger.info(f'Synced {len(synced)} command(s) after retry')
-                except Exception as retry_error:
-                    logger.error(f'Failed to sync commands after retry: {retry_error}')
-            else:
-                logger.error(f'Failed to sync commands: {e}')
-        except Exception as e:
-            logger.error(f'Failed to sync commands: {e}')
-
-        # Start cool status rotation
-        self.status_task = asyncio.create_task(self.rotate_status())
-
-        # Send auto-welcome message to specific channel
-        await self.send_auto_welcome_message()
-
 
     async def on_member_ban(self, guild, user):
         """Handle member ban with STK-style message"""
@@ -296,7 +257,7 @@ class ShopBot(commands.Bot):
             # Random aggressive messages for different scenarios
             leave_messages = [
                 f"💀 **{member.display_name}** COULDN'T HANDLE THE HEAT AND DIPPED! 💀",
-                f"🗑️ **{member.display_name}** TOOK THE TRASH OUT THEMSELVES! 🗑️", 
+                f"🗑️ **{member.display_name}** TOOK THE TRASH OUT THEMSELVES! 🗑️",
                 f"🤡 **{member.display_name}** WAS TOO SOFT FOR STK! 🤡",
                 f"👋 **{member.display_name}** LEFT CRYING! BYE BYE! 👋",
                 f"💸 **{member.display_name}** COULDN'T AFFORD THE LIFESTYLE! 💸",
@@ -321,7 +282,7 @@ class ShopBot(commands.Bot):
 
             embed.add_field(
                 name="📊 Gang Stats",
-                value=f"**Real Members Left:** {len(member.guild.members)}\n**They Joined:** <t:{int(member.joined_at.timestamp() if member.joined_at else 0)}:R>\n**Lasted:** Not long enough! 💀",
+                value=f"**Real Members Left:** {len(member.guild.members)}\n**They Joined:** Recently\n**Lasted:** Not long enough! 💀",
                 inline=True
             )
 
@@ -358,13 +319,19 @@ class ShopBot(commands.Bot):
             channel = guild.get_channel(channel_id)
             if channel and isinstance(channel, discord.TextChannel):
                 try:
+                    # Check if bot has permissions before sending
+                    permissions = channel.permissions_for(guild.me)
+                    if not permissions.send_messages or not permissions.embed_links:
+                        logger.warning(f"Missing permissions in channel {channel.name} ({channel_id}) in guild {guild.name}")
+                        continue
+
                     embed = discord.Embed(
                         title="💀 STK (SHOOT TO KILL) 💀",
                         description="**WELCOME TO THE MOST FEARED GANG IN THE STREETS**",
                         color=0xFF0000,
                         timestamp=datetime.datetime.now(datetime.timezone.utc)
                     )
-                    
+
                     embed.add_field(
                         name="🏙️ WHO WE ARE",
                         value="**STK (Shoot to Kill)** is the most feared and respected gang operating in Tha Bronx 3. We provide the best services and maintain our reputation through elite operations and unmatched street credibility.",
@@ -397,7 +364,7 @@ class ShopBot(commands.Bot):
 
                     embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif")
                     embed.set_footer(text="STK (Shoot to Kill) • Most Feared Gang • Welcome to Our Territory", icon_url=guild.me.display_avatar.url)
-                    
+
                     await channel.send("🚨 **STK TERRITORY** 🚨", embed=embed)
                     logger.info(f"Sent auto-welcome message to channel {channel.name} ({channel_id}) in guild {guild.name}.")
                 except discord.Forbidden:
@@ -428,58 +395,6 @@ PAYMENT_METHODS = {
 
 # Customer role ID
 CUSTOMER_ROLE_ID = 1405942363721044199
-
-# STK Directory Data - Updated for 2025
-STK_DIRECTORY = {
-    "zpofe": {
-        "user_id": 1385239185006268457,
-        "rank": "💎 𝗖𝗛𝗜𝗘𝗙 𝗔𝗥𝗖𝗛𝗜𝗧𝗘𝗖𝗧 💎 | ⚡ 𝗘𝗟𝗜𝗧𝗘 𝗗𝗘𝗩 ⚡",
-        "role": "𝘊𝘰𝘥𝘦 𝘔𝘢𝘴𝘵𝘦𝘳 & 𝘚𝘶𝘱𝘳𝘦𝘮𝘦 𝘊𝘰𝘯𝘯𝘦𝘤𝘵",
-        "description": "🧠 Mastermind architect of STK's digital empire • 🚀 Revolutionary code wizard transforming the streets into cyber supremacy • 💀 The brain behind every operation",
-        "specialties": ["🔥 Advanced Python Architecture", "⚡ Discord Bot Mastery", "💎 Premium UI/UX Design", "🚀 System Optimization", "💰 Revenue Generation", "🛡️ Security Systems"],
-        "status": "🟢 Dominating",
-        "joined": "2024",
-        "achievements": ["👑 Lead System Architect", "🏆 Top Revenue Generator", "💻 Master Full-Stack Developer", "🎨 Elite UI/UX Designer", "⚡ Speed Coding Champion", "💎 Premium Service Creator", "🔥 50+ Satisfied Customers", "🚀 Innovation Pioneer", "🛡️ Security Expert", "💰 Million Dollar Mind"],
-        "color": 0x00FFFF,
-        "card_image": "https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif"
-    },
-    "asai": {
-        "user_id": 666394721039417346,
-        "rank": "🪖 General 🪖",
-        "role": "Operations General",
-        "description": "Strategic operations and coordination specialist",
-        "specialties": ["Operations", "Coordination", "Strategy"],
-        "status": "Active",
-        "joined": "2025",
-        "achievements": ["Strategic Mastermind", "Operations Expert"],
-        "color": 0x00FF00,
-        "card_image": "https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif"
-    },
-    "drow": {
-        "user_id": 1394285950464426066,
-        "rank": "🪖 General 🪖 | 🔌 Plug 🔌 | 👏 Top Smacka 👏",
-        "role": "Multi-Role Elite",
-        "description": "Premium connections and top-tier operations specialist",
-        "specialties": ["Premium Services", "Elite Operations", "Connections"],
-        "status": "Active",
-        "joined": "2025",
-        "achievements": ["Multi-Role Elite", "Premium Connect", "Top Performer"],
-        "color": 0x9932CC,
-        "card_image": "https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif"
-    },
-    "top_smacka": {
-        "user_id": 1106038406317871184,
-        "rank": "👏 Top Smacka 👏",
-        "role": "Elite Operator",
-        "description": "High-performance operations specialist",
-        "specialties": ["Elite Operations", "Performance", "Execution"],
-        "status": "Active",
-        "joined": "2025",
-        "achievements": ["Top Performance", "Elite Status"],
-        "color": 0xFF6600,
-        "card_image": "https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif"
-    }
-}
 
 # Weapon data
 WEAPON_DATA = {
@@ -1053,7 +968,7 @@ class InfoView(discord.ui.View):
 
         embed.add_field(
             name="👑 THE CREW",
-            value="💀 **ZPOFE** - Main connect • 3+ years • Lightning delivery\n⚡ **DROW** - Specialist • Premium connections • Trusted",
+            value="💀 **ZPOFE** • Main connect • 3+ years • Lightning delivery\n⚡ **DROW** • Specialist • Premium connections • Trusted",
             inline=False
         )
 
@@ -1342,7 +1257,7 @@ class PersonalSTKShopView(discord.ui.View):
 
     @discord.ui.button(label='📦 PREMIUM', style=discord.ButtonStyle.secondary, emoji='💎', row=1)
     async def other_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = OtherShopView(interaction.user_id)
+        view = OtherShopView(self.user_id)
         embed = view.create_other_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
@@ -1436,7 +1351,7 @@ class PersistentSTKShopView(discord.ui.View):
     @discord.ui.button(label='📦 PREMIUM', style=discord.ButtonStyle.secondary, emoji='💎', row=1)
     async def other_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Each user gets their own other shop view
-        view = OtherShopView(interaction.user_id)
+        view = OtherShopView(interaction.user.id)
         embed = view.create_other_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
@@ -1528,7 +1443,25 @@ async def create_stk_join_ticket(interaction: discord.Interaction):
     category = discord.utils.get(guild.categories, name="🥊・STK TRYOUTS")
     if not category:
         try:
-            category = await guild.create_category("🥊・STK TRYOUTS")
+            # Set proper permissions for category - default deny all
+            category_overwrites = {
+                guild.default_role: discord.PermissionOverwrite(read_messages=False, send_messages=False),
+                guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_channels=True)
+            }
+            
+            # Add staff role permissions
+            staff_roles = ['staff', 'mod', 'admin', 'owner', 'stk', 'management', 'manager']
+            for role in guild.roles:
+                if any(keyword in role.name.lower() for keyword in staff_roles):
+                    category_overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_channels=True)
+
+            # Add admin role permissions if configured
+            if BotConfig.ADMIN_ROLE_ID:
+                admin_role = guild.get_role(BotConfig.ADMIN_ROLE_ID)
+                if admin_role:
+                    category_overwrites[admin_role] = discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_channels=True)
+
+            category = await guild.create_category("🥊・STK TRYOUTS", overwrites=category_overwrites)
         except discord.Forbidden:
             logger.error("No permission to create category")
             return None
@@ -1536,18 +1469,31 @@ async def create_stk_join_ticket(interaction: discord.Interaction):
     # Create ticket channel
     ticket_name = f"stk-tryout-{interaction.user.name}-{datetime.datetime.now().strftime('%m%d-%H%M')}"
 
-    # Set permissions
+    # Set strict permissions - deny everyone by default, then allow specific users/roles
     overwrites = {
-        guild.default_role: discord.PermissionOverwrite(read_messages=False),
-        interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
-        guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        guild.default_role: discord.PermissionOverwrite(read_messages=False, send_messages=False),
+        interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True, attach_files=True),
+        guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_messages=True)
     }
+
+    # Add staff role permissions - only specific staff roles can see tryouts
+    staff_roles = ['staff', 'mod', 'admin', 'owner', 'stk', 'management', 'manager', 'support']
+    for role in guild.roles:
+        if any(keyword in role.name.lower() for keyword in staff_roles):
+            overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_messages=True)
 
     # Add admin role permissions if configured
     if BotConfig.ADMIN_ROLE_ID:
         admin_role = guild.get_role(BotConfig.ADMIN_ROLE_ID)
         if admin_role:
-            overwrites[admin_role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+            overwrites[admin_role] = discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_messages=True)
+
+    # Add specific permissions for STK members
+    stk_member_ids = [1385239185006268457, 954818761729376357, 1394285950464426066]  # Zpofe, Asai, Drow
+    for member_id in stk_member_ids:
+        member = guild.get_member(member_id)
+        if member:
+            overwrites[member] = discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_messages=True)
 
     try:
         ticket_channel = await guild.create_text_channel(
@@ -1571,10 +1517,9 @@ async def send_stk_join_embed(channel, user):
 
     # Create main STK join embed
     embed = discord.Embed(
-        title=" postureProxy STK TRYOUT STARTED!",
+        title="🥊 STK TRYOUT STARTED!",
         description="**Your tryout has been created**\n\n**WAIT FOR ALL 3 STK MEMBERS TO JOIN**",
-        color=0xFF0000,
-        timestamp=datetime.datetime.now(datetime.timezone.utc)
+        color=0xFF0000
     )
 
     embed.add_field(
@@ -1584,8 +1529,8 @@ async def send_stk_join_embed(channel, user):
     )
 
     embed.add_field(
-        name="⏰ Tryout Time",
-        value=f"<t:{int(datetime.datetime.now(datetime.timezone.utc).timestamp())}:F>",
+        name="⏰ Tryout Created",
+        value="Just now",
         inline=True
     )
 
@@ -1660,7 +1605,25 @@ async def create_purchase_ticket(interaction: discord.Interaction, cart):
     category = discord.utils.get(guild.categories, name="🎫・TICKETS")
     if not category:
         try:
-            category = await guild.create_category("🎫・TICKETS")
+            # Set proper permissions for category - default deny all
+            category_overwrites = {
+                guild.default_role: discord.PermissionOverwrite(read_messages=False, send_messages=False),
+                guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_channels=True)
+            }
+            
+            # Add staff role permissions
+            staff_roles = ['staff', 'mod', 'admin', 'owner', 'stk', 'management', 'manager']
+            for role in guild.roles:
+                if any(keyword in role.name.lower() for keyword in staff_roles):
+                    category_overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_channels=True)
+
+            # Add admin role permissions if configured
+            if BotConfig.ADMIN_ROLE_ID:
+                admin_role = guild.get_role(BotConfig.ADMIN_ROLE_ID)
+                if admin_role:
+                    category_overwrites[admin_role] = discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_channels=True)
+
+            category = await guild.create_category("🎫・TICKETS", overwrites=category_overwrites)
         except discord.Forbidden:
             logger.error("No permission to create category")
             return None
@@ -1668,18 +1631,31 @@ async def create_purchase_ticket(interaction: discord.Interaction, cart):
     # Create ticket channel
     ticket_name = f"ticket-{interaction.user.name}-{datetime.datetime.now().strftime('%m%d-%H%M')}"
 
-    # Set permissions
+    # Set strict permissions - deny everyone by default, then allow specific users/roles
     overwrites = {
-        guild.default_role: discord.PermissionOverwrite(read_messages=False),
-        interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
-        guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        guild.default_role: discord.PermissionOverwrite(read_messages=False, send_messages=False),
+        interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True, attach_files=True, embed_links=True),
+        guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_messages=True, embed_links=True, attach_files=True)
     }
+
+    # Add staff role permissions - only specific staff roles can see tickets
+    staff_roles = ['staff', 'mod', 'admin', 'owner', 'stk', 'management', 'manager', 'support']
+    for role in guild.roles:
+        if any(keyword in role.name.lower() for keyword in staff_roles):
+            overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_messages=True)
 
     # Add admin role permissions if configured
     if BotConfig.ADMIN_ROLE_ID:
         admin_role = guild.get_role(BotConfig.ADMIN_ROLE_ID)
         if admin_role:
-            overwrites[admin_role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+            overwrites[admin_role] = discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_messages=True)
+
+    # Add specific STK members permissions
+    stk_member_ids = [1385239185006268457, 954818761729376357, 1394285950464426066]  # Zpofe, Asai, Drow
+    for member_id in stk_member_ids:
+        member = guild.get_member(member_id)
+        if member:
+            overwrites[member] = discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_messages=True)
 
     try:
         ticket_channel = await guild.create_text_channel(
@@ -1738,9 +1714,8 @@ async def send_ticket_embed(channel, user, cart):
     # Create detailed order summary embed
     order_embed = discord.Embed(
         title="📋 ORDER SUMMARY",
-        description=f"**Customer:** {user.mention} (`{user.id}`)\n**Order Time:** <t:{int(datetime.datetime.now(datetime.timezone.utc).timestamp())}:F>",
-        color=0x00ff00,
-        timestamp=datetime.datetime.now(datetime.timezone.utc)
+        description=f"**Customer:** {user.mention} (`{user.id}`)\n**Order Time:** Just now",
+        color=0x00ff00
     )
 
     # Add packages section
@@ -1955,1008 +1930,20 @@ async def send_delivery_tutorials(channel, cart):
         watch_embed.set_footer(text="STK Supply • Watch Delivery")
         await channel.send(embed=watch_embed)
 
-
-
-
-
-# Admin check function
-def is_admin(user: discord.Member) -> bool:
-    """Check if user is an admin"""
-    admin_ids = [954818761729376357, 1385239185006268457, 666394721039417346, 1394285950464426066, 1106038406317871184]
-    return user.id in admin_ids or user.guild_permissions.administrator
-
-# Setup shop command
-@bot.tree.command(name="setup", description="Setup the STK Shop - ADMIN ONLY")
-async def setup_shop(interaction: discord.Interaction):
-    """Setup the STK Shop interface"""
-    try:
-        # Check if user is admin
-        if not is_admin(interaction.user):
-            await interaction.response.send_message("❌ This command is restricted to STK admins only.", ephemeral=True)
-            return
-
-        await interaction.response.send_message("🔄 Setting up STK Supply...", ephemeral=True)
-
-        view = PersistentSTKShopView()
-        embed = view.create_shop_embed()
-
-        await interaction.channel.send(embed=embed, view=view)
-        await interaction.edit_original_response(content="✅ **STK Supply live!**")
-
-    except Exception as e:
-        logger.error(f"Error in setup_shop command: {e}")
-        try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
-            else:
-                await interaction.edit_original_response(content="❌ Some shit went wrong.")
-        except discord.NotFound:
-            logger.error("Could not send error message")
-
-# Admin Action Modals
-class WarnModal(discord.ui.Modal):
-    def __init__(self, target_user_id: int):
-        super().__init__(title="Warn User")
-        self.target_user_id = target_user_id
-
-        self.reason = discord.ui.TextInput(
-            label="Warning Reason",
-            placeholder="Enter the reason for this warning...",
-            max_length=500,
-            style=discord.TextStyle.paragraph
-        )
-        self.add_item(self.reason)
-
-    async def on_submit(self, interaction: discord.Interaction):
-        try:
-            target_user = await bot.fetch_user(self.target_user_id)
-            if not target_user:
-                await interaction.response.send_message("User not found.", ephemeral=True)
-                return
-
-            # Create warning embed
-            embed = discord.Embed(
-                title="⚠️ USER WARNED",
-                description=f"**User:** {target_user.mention}\n**Reason:** {self.reason.value}\n**Warned by:** {interaction.user.mention}",
-                color=0xFFFF00,
-                timestamp=datetime.datetime.now(datetime.timezone.utc)
-            )
-
-            await interaction.response.send_message(embed=embed)
-            logger.info(f"User {interaction.user.id} warned {target_user.id} for: {self.reason.value}")
-
-        except Exception as e:
-            logger.error(f"Error warning user: {e}")
-            await interaction.response.send_message("❌ Failed to warn user.", ephemeral=True)
-
-class KickModal(discord.ui.Modal):
-    def __init__(self, target_user_id: int):
-        super().__init__(title="Kick User")
-        self.target_user_id = target_user_id
-
-        self.reason = discord.ui.TextInput(
-            label="Kick Reason",
-            placeholder="Enter the reason for kicking this user...",
-            max_length=500,
-            style=discord.TextStyle.paragraph
-        )
-        self.add_item(self.reason)
-
-    async def on_submit(self, interaction: discord.Interaction):
-        try:
-            target_member = interaction.guild.get_member(self.target_user_id)
-            if not target_member:
-                await interaction.response.send_message("User not found in this server.", ephemeral=True)
-                return
-
-            reason = f"Kicked by {interaction.user.display_name}: {self.reason.value}"
-            await target_member.kick(reason=reason)
-
-            embed = discord.Embed(
-                title="👢 USER KICKED",
-                description=f"**User:** {target_member.mention}\n**Reason:** {self.reason.value}\n**Kicked by:** {interaction.user.mention}",
-                color=0xFF0000,
-                timestamp=datetime.datetime.now(datetime.timezone.utc)
-            )
-
-            await interaction.response.send_message(embed=embed)
-            logger.info(f"User {interaction.user.id} kicked {target_member.id} for: {self.reason.value}")
-
-        except discord.Forbidden:
-            await interaction.response.send_message("❌ I don't have permissions to kick this user.", ephemeral=True)
-        except Exception as e:
-            logger.error(f"Error kicking user: {e}")
-            await interaction.response.send_message("❌ Failed to kick user.", ephemeral=True)
-
-class BanModal(discord.ui.Modal):
-    def __init__(self, target_user_id: int):
-        super().__init__(title="Ban User")
-        self.target_user_id = target_user_id
-
-        self.reason = discord.ui.TextInput(
-            label="Ban Reason",
-            placeholder="Enter the reason for banning this user...",
-            max_length=500,
-            style=discord.TextStyle.paragraph
-        )
-        self.add_item(self.reason)
-
-    async def on_submit(self, interaction: discord.Interaction):
-        try:
-            target_member = interaction.guild.get_member(self.target_user_id)
-            target_user = await bot.fetch_user(self.target_user_id)
-
-            if not target_user:
-                await interaction.response.send_message("User not found.", ephemeral=True)
-                return
-
-            reason = f"Banned by {interaction.user.display_name}: {self.reason.value}"
-            await interaction.guild.ban(target_user, reason=reason)
-
-            embed = discord.Embed(
-                title="⚖️ USER BANNED",
-                description=f"**User:** {target_user.mention}\n**Reason:** {self.reason.value}\n**Banned by:** {interaction.user.mention}",
-                color=0x8B0000,
-                timestamp=datetime.datetime.now(datetime.timezone.utc)
-            )
-
-            await interaction.response.send_message(embed=embed)
-            logger.info(f"User {interaction.user.id} banned {target_user.id} for: {self.reason.value}")
-
-        except discord.Forbidden:
-            await interaction.response.send_message("❌ I don't have permissions to ban this user.", ephemeral=True)
-        except Exception as e:
-            logger.error(f"Error banning user: {e}")
-            await interaction.response.send_message("❌ Failed to ban user.", ephemeral=True)
-
-class TimeoutModal(discord.ui.Modal):
-    def __init__(self, target_user_id: int):
-        super().__init__(title="Timeout User")
-        self.target_user_id = target_user_id
-
-        self.duration = discord.ui.TextInput(
-            label="Timeout Duration (minutes)",
-            placeholder="Enter timeout duration in minutes (max 40320)...",
-            max_length=10
-        )
-        self.add_item(self.duration)
-
-        self.reason = discord.ui.TextInput(
-            label="Timeout Reason",
-            placeholder="Enter the reason for this timeout...",
-            max_length=500,
-            style=discord.TextStyle.paragraph
-        )
-        self.add_item(self.reason)
-
-    async def on_submit(self, interaction: discord.Interaction):
-        try:
-            target_member = interaction.guild.get_member(self.target_user_id)
-            if not target_member:
-                await interaction.response.send_message("User not found in this server.", ephemeral=True)
-                return
-
-            # Parse duration
-            try:
-                duration_minutes = int(self.duration.value)
-                if duration_minutes <= 0 or duration_minutes > 40320:  # Discord's max timeout
-                    await interaction.response.send_message("❌ Duration must be between 1 and 40320 minutes (28 days).", ephemeral=True)
-                    return
-            except ValueError:
-                await interaction.response.send_message("❌ Please enter a valid number for duration.", ephemeral=True)
-                return
-
-            # Calculate timeout until datetime
-            timeout_until = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=duration_minutes)
-
-            reason = f"Timed out by {interaction.user.display_name}: {self.reason.value}"
-            await target_member.timeout(timeout_until, reason=reason)
-
-            embed = discord.Embed(
-                title="⏳ USER TIMED OUT",
-                description=f"**User:** {target_member.mention}\n**Duration:** {duration_minutes} minutes\n**Reason:** {self.reason.value}\n**Timed out by:** {interaction.user.mention}",
-                color=0xFFA500,
-                timestamp=datetime.datetime.now(datetime.timezone.utc)
-            )
-
-            await interaction.response.send_message(embed=embed)
-            logger.info(f"User {interaction.user.id} timed out {target_member.id} for {duration_minutes} minutes: {self.reason.value}")
-
-        except discord.Forbidden:
-            await interaction.response.send_message("❌ I don't have permissions to timeout this user.", ephemeral=True)
-        except Exception as e:
-            logger.error(f"Error timing out user: {e}")
-            await interaction.response.send_message("❌ Failed to timeout user.", ephemeral=True)
-
-class RewardModal(discord.ui.Modal):
-    def __init__(self, target_user_id: int):
-        super().__init__(title="Give Achievement Reward")
-        self.target_user_id = target_user_id
-
-        self.achievement = discord.ui.TextInput(
-            label="Achievement Name",
-            placeholder="Enter the achievement to give...",
-            max_length=100
-        )
-        self.add_item(self.achievement)
-
-        self.description = discord.ui.TextInput(
-            label="Achievement Description (Optional)",
-            placeholder="Enter a description for this achievement...",
-            max_length=200,
-            required=False,
-            style=discord.TextStyle.paragraph
-        )
-        self.add_item(self.description)
-
-    async def on_submit(self, interaction: discord.Interaction):
-        try:
-            target_user = await bot.fetch_user(self.target_user_id)
-            if not target_user:
-                await interaction.response.send_message("User not found.", ephemeral=True)
-                return
-
-            # Auto-detect members and get user's card
-            auto_detect_members(interaction.guild)
-            member_key = get_user_card_key(self.target_user_id)
-
-            # Add achievement to user's card
-            achievement_text = self.achievement.value
-            if self.description.value:
-                achievement_text += f" - {self.description.value}"
-
-            # Check if achievement already exists
-            if achievement_text not in STK_DIRECTORY[member_key]["achievements"]:
-                STK_DIRECTORY[member_key]["achievements"].append(achievement_text)
-
-                embed = discord.Embed(
-                    title="🎁 ACHIEVEMENT AWARDED",
-                    description=f"**User:** {target_user.mention}\n**Achievement:** {achievement_text}\n**Awarded by:** {interaction.user.mention}",
-                    color=0x00FF00,
-                    timestamp=datetime.datetime.now(datetime.timezone.utc)
-                )
-
-                await interaction.response.send_message(embed=embed)
-                logger.info(f"User {interaction.user.id} gave achievement '{achievement_text}' to {target_user.id}")
-            else:
-                await interaction.response.send_message("❌ User already has this achievement.", ephemeral=True)
-
-        except Exception as e:
-            logger.error(f"Error giving achievement: {e}")
-            await interaction.response.send_message("❌ Failed to give achievement.", ephemeral=True)
-
-# Card Editing Views and Components
-class CardEditModal(discord.ui.Modal):
-    def __init__(self, member_key: str, field_type: str, current_value: str = "", user_id: int = None, edit_view=None):
-        super().__init__(title=f"Edit {field_type.title()}")
-        self.member_key = member_key
-        self.field_type = field_type
-        self.user_id = user_id
-        self.edit_view = edit_view
-
-        if field_type == "description":
-            self.field = discord.ui.TextInput(
-                label="Description",
-                placeholder="Enter member description...",
-                default=current_value,
-                max_length=200,
-                style=discord.TextStyle.paragraph
-            )
-        elif field_type == "role":
-            self.field = discord.ui.TextInput(
-                label="Role",
-                placeholder="Enter member role...",
-                default=current_value,
-                max_length=100
-            )
-        elif field_type == "status":
-            self.field = discord.ui.TextInput(
-                label="Status",
-                placeholder="Active, Inactive, etc...",
-                default=current_value,
-                max_length=50
-            )
-        elif field_type == "card_image":
-            self.field = discord.ui.TextInput(
-                label="Card Image URL",
-                placeholder="https://example.com/image.gif",
-                default=current_value,
-                max_length=500
-            )
-
-        self.add_item(self.field)
-
-    async def on_submit(self, interaction: discord.Interaction):
-        try:
-            # Only allow users to edit their own cards
-            if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
-                await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
-                return
-
-            # Store change temporarily in edit view
-            if self.edit_view:
-                self.edit_view.pending_changes[self.field_type] = self.field.value
-
-            await interaction.response.send_message(f"✅ {self.field_type.title()} staged for update. Click 'Confirm Changes' to save all changes.", ephemeral=True)
-
-        except Exception as e:
-            logger.error(f"Error staging card change: {e}")
-            await interaction.response.send_message("❌ Failed to stage change.", ephemeral=True)
-
-class SpecialtiesEditModal(discord.ui.Modal):
-    def __init__(self, member_key: str, current_specialties: list, user_id: int = None, edit_view=None):
-        super().__init__(title="Edit Specialties")
-        self.member_key = member_key
-        self.user_id = user_id
-        self.edit_view = edit_view
-
-        specialties_text = "\n".join(current_specialties)
-        self.specialties_field = discord.ui.TextInput(
-            label="Specialties (one per line)",
-            placeholder="Development\nConnections\nCustomer Service",
-            default=specialties_text,
-            max_length=500,
-            style=discord.TextStyle.paragraph
-        )
-        self.add_item(self.specialties_field)
-
-    async def on_submit(self, interaction: discord.Interaction):
-        try:
-            # Only allow users to edit their own cards
-            if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
-                await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
-                return
-
-            # Convert text to list and store temporarily
-            new_specialties = [specialty.strip() for specialty in self.specialties_field.value.split('\n') if specialty.strip()]
-            if self.edit_view:
-                self.edit_view.pending_changes["specialties"] = new_specialties
-
-            await interaction.response.send_message("✅ Specialties staged for update. Click 'Confirm Changes' to save all changes.", ephemeral=True)
-
-        except Exception as e:
-            logger.error(f"Error staging specialties change: {e}")
-            await interaction.response.send_message("❌ Failed to stage change.", ephemeral=True)
-
-class AchievementsEditModal(discord.ui.Modal):
-    def __init__(self, member_key: str, current_achievements: list, user_id: int = None, edit_view=None):
-        super().__init__(title="Edit Achievements")
-        self.member_key = member_key
-        self.user_id = user_id
-        self.edit_view = edit_view
-
-        achievements_text = "\n".join(current_achievements)
-        self.achievements_field = discord.ui.TextInput(
-            label="Achievements (one per line)",
-            placeholder="Bot Developer\nTop Seller\nElite Status",
-            default=achievements_text,
-            max_length=500,
-            style=discord.TextStyle.paragraph
-        )
-        self.add_item(self.achievements_field)
-
-    async def on_submit(self, interaction: discord.Interaction):
-        try:
-            # Only allow users to edit their own cards
-            if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
-                await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
-                return
-
-            # Convert text to list and store temporarily
-            new_achievements = [achievement.strip() for achievement in self.achievements_field.value.split('\n') if achievement.strip()]
-            if self.edit_view:
-                self.edit_view.pending_changes["achievements"] = new_achievements
-
-            await interaction.response.send_message("✅ Achievements staged for update. Click 'Confirm Changes' to save all changes.", ephemeral=True)
-
-        except Exception as e:
-            logger.error(f"Error staging achievements change: {e}")
-            await interaction.response.send_message("❌ Failed to stage change.", ephemeral=True)
-
-class ColorSelectView(discord.ui.View):
-    def __init__(self, member_key: str, user_id: int = None, edit_view=None):
-        super().__init__(timeout=300)
-        self.member_key = member_key
-        self.user_id = user_id
-        self.edit_view = edit_view
-
-    @discord.ui.button(label='🔴 Red', style=discord.ButtonStyle.danger)
-    async def red_color(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.update_color(interaction, 0xFF0000)
-
-    @discord.ui.button(label='🟢 Green', style=discord.ButtonStyle.success)
-    async def green_color(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.update_color(interaction, 0x00FF00)
-
-    @discord.ui.button(label='🔵 Blue', style=discord.ButtonStyle.primary)
-    async def blue_color(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.update_color(interaction, 0x0000FF)
-
-    @discord.ui.button(label='🟡 Gold', style=discord.ButtonStyle.secondary)
-    async def gold_color(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.update_color(interaction, 0xFFD700)
-
-    @discord.ui.button(label=' purple', style=discord.ButtonStyle.secondary)
-    async def purple_color(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.update_color(interaction, 0x9932CC)
-
-    @discord.ui.button(label='🟠 Orange', style=discord.ButtonStyle.secondary)
-    async def orange_color(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.update_color(interaction, 0xFF6600)
-
-    @discord.ui.button(label='⚫ Black', style=discord.ButtonStyle.secondary)
-    async def black_color(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.update_color(interaction, 0x000000)
-
-    @discord.ui.button(label='⚪ White', style=discord.ButtonStyle.secondary)
-    async def white_color(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.update_color(interaction, 0xFFFFFF)
-
-    async def update_color(self, interaction: discord.Interaction, color: int):
-        try:
-            # Only allow users to edit their own cards
-            if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
-                await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
-                return
-
-            # Store color change temporarily
-            if self.edit_view:
-                self.edit_view.pending_changes["color"] = color
-
-            await interaction.response.send_message("✅ Color staged for update. Click 'Confirm Changes' to save all changes.", ephemeral=True)
-
-        except Exception as e:
-            logger.error(f"Error staging color change: {e}")
-            await interaction.response.send_message("❌ Failed to stage change.", ephemeral=True)
-
-class CardEditView(discord.ui.View):
-    def __init__(self, member_key: str, user_id: int = None):
-        super().__init__(timeout=300)
-        self.member_key = member_key
-        self.user_id = user_id
-        self.pending_changes = {}  # Store pending changes before confirmation
-
-    @discord.ui.button(label='📝 Edit Description', style=discord.ButtonStyle.secondary, row=0)
-    async def edit_description(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Only allow editing own card
-        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
-            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
-            return
-
-        current_value = STK_DIRECTORY[self.member_key].get("description", "")
-        modal = CardEditModal(self.member_key, "description", current_value, interaction.user.id, self)
-        await interaction.response.send_modal(modal)
-
-    @discord.ui.button(label='💼 Edit Role', style=discord.ButtonStyle.secondary, row=0)
-    async def edit_role(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Only allow editing own card
-        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
-            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
-            return
-
-        current_value = STK_DIRECTORY[self.member_key].get("role", "")
-        modal = CardEditModal(self.member_key, "role", current_value, interaction.user.id, self)
-        await interaction.response.send_modal(modal)
-
-    @discord.ui.button(label='📊 Edit Status', style=discord.ButtonStyle.secondary, row=0)
-    async def edit_status(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Only allow editing own card
-        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
-            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
-            return
-
-        current_value = STK_DIRECTORY[self.member_key].get("status", "")
-        modal = CardEditModal(self.member_key, "status", current_value, interaction.user.id, self)
-        await interaction.response.send_modal(modal)
-
-    # Join date editing removed - this should only be set by admins
-
-    @discord.ui.button(label='🖼️ Edit Image', style=discord.ButtonStyle.secondary, row=1)
-    async def edit_image(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Only allow editing own card
-        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
-            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
-            return
-
-        current_value = STK_DIRECTORY[self.member_key].get("card_image", "")
-        modal = CardEditModal(self.member_key, "card_image", current_value, interaction.user.id, self)
-        await interaction.response.send_modal(modal)
-
-    @discord.ui.button(label='🎯 Edit Specialties', style=discord.ButtonStyle.primary, row=2)
-    async def edit_specialties(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Only allow editing own card
-        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
-            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
-            return
-
-        current_specialties = STK_DIRECTORY[self.member_key].get("specialties", [])
-        modal = SpecialtiesEditModal(self.member_key, current_specialties, interaction.user.id, self)
-        await interaction.response.send_modal(modal)
-
-    @discord.ui.button(label='🏅 View Achievements', style=discord.ButtonStyle.secondary, row=2)
-    async def view_achievements(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Only allow viewing own card achievements
-        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
-            await interaction.response.send_message("❌ You can only view your own achievements.", ephemeral=True)
-            return
-
-        current_achievements = STK_DIRECTORY[self.member_key].get("achievements", [])
-
-        embed = discord.Embed(
-            title="🏆 Your Achievements",
-            description="**Achievements are awarded by admins only**",
-            color=STK_DIRECTORY[self.member_key]["color"]
-        )
-
-        if current_achievements:
-            achievement_list = "\n".join([f"🔥 {achievement}" for achievement in current_achievements])
-            embed.add_field(
-                name="🏅 Earned Achievements",
-                value=achievement_list,
-                inline=False
-            )
-        else:
-            embed.add_field(
-                name="🏅 No Achievements Yet",
-                value="Keep contributing to earn achievements from admins!",
-                inline=False
-            )
-
-        embed.set_footer(text="STK Supply • Achievements are admin-awarded only")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    @discord.ui.button(label='🎨 Change Color', style=discord.ButtonStyle.primary, row=2)
-    async def change_color(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Only allow editing own card
-        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
-            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
-            return
-
-        color_view = ColorSelectView(self.member_key, interaction.user.id, self)
-        embed = discord.Embed(
-            title="🎨 Choose Your Card Color",
-            description="Select a color for your member card:",
-            color=STK_DIRECTORY[self.member_key]["color"]
-        )
-        await interaction.response.send_message(embed=embed, view=color_view, ephemeral=True)
-
-    @discord.ui.button(label='👁️ Preview Card', style=discord.ButtonStyle.success, row=3)
-    async def preview_card(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Show updated card preview with pending changes
-        member_data = STK_DIRECTORY[self.member_key].copy()
-
-        # Apply pending changes to preview
-        for field, value in self.pending_changes.items():
-            member_data[field] = value
-
-        user_id = member_data["user_id"]
-
-        # Try to get the Discord user
-        try:
-            discord_user = await bot.fetch_user(user_id)
-            username = discord_user.display_name
-            avatar_url = discord_user.display_avatar.url
-        except:
-            username = f"User {user_id}"
-            avatar_url = None
-
-        # Create professional member card
-        embed = discord.Embed(
-            title=f"{member_data['rank']}",
-            description=f"**{member_data['role']}**\n{member_data['description']}",
-            color=member_data['color'],
-            timestamp=datetime.datetime.now(datetime.timezone.utc)
-        )
-
-        # Set user avatar if available
-        if avatar_url:
-            embed.set_thumbnail(url=avatar_url)
-
-        # Member info
-        embed.add_field(
-            name="👤 Member Info",
-            value=f"**Discord:** <@{user_id}>\n**Status:** {member_data['status']}\n**Joined STK:** {member_data['joined']}",
-            inline=True
-        )
-
-        # Specialties
-        embed.add_field(
-            name="🎯 Specialties",
-            value="\n".join([f"• {specialty}" for specialty in member_data['specialties']]) if member_data['specialties'] else "No specialties listed",
-            inline=True
-        )
-
-        # Earned Rewards
-        embed.add_field(
-            name="🏆 Earned Rewards",
-            value="\n".join([f"🔥 {achievement}" for achievement in member_data['achievements']]) if member_data['achievements'] else "No rewards earned yet",
-            inline=False
-        )
-
-        # STK branding
-        embed.set_footer(
-            text="STK Supply • Official Directory • Your Card Preview (With Pending Changes)",
-            icon_url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif"
-        )
-
-        # Add card image if available
-        if member_data.get("card_image"):
-            embed.set_image(url=member_data["card_image"])
-
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    @discord.ui.button(label='✅ CONFIRM CHANGES', style=discord.ButtonStyle.success, row=4)
-    async def confirm_changes(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Only allow users to edit their own cards
-        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
-            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
-            return
-
-        if not self.pending_changes:
-            await interaction.response.send_message("❌ No changes to save.", ephemeral=True)
-            return
-
-        try:
-            # Apply all pending changes to the actual directory
-            for field, value in self.pending_changes.items():
-                STK_DIRECTORY[self.member_key][field] = value
-
-            # Create confirmation message
-            changes_list = []
-            for field, value in self.pending_changes.items():
-                if field == "specialties" or field == "achievements":
-                    changes_list.append(f"**{field.title()}:** {len(value)} items")
-                else:
-                    changes_list.append(f"**{field.title()}:** Updated")
-
-            embed = discord.Embed(
-                title="✅ CHANGES SAVED",
-                description="Your card has been successfully updated!",
-                color=0x00FF00
-            )
-
-            embed.add_field(
-                name="📝 Applied Changes",
-                value="\n".join(changes_list),
-                inline=False
-            )
-
-            embed.set_footer(text="STK Supply • Card Updated Successfully")
-
-            # Clear pending changes
-            self.pending_changes = {}
-
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            logger.info(f"User {interaction.user.id} confirmed card changes for {self.member_key}")
-
-        except Exception as e:
-            logger.error(f"Error confirming card changes: {e}")
-            await interaction.response.send_message("❌ Failed to save changes.", ephemeral=True)
-
-    @discord.ui.button(label='❌ DISCARD CHANGES', style=discord.ButtonStyle.danger, row=4)
-    async def discard_changes(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Only allow users to edit their own cards
-        if STK_DIRECTORY[self.member_key]["user_id"] != interaction.user.id:
-            await interaction.response.send_message("❌ You can only edit your own card.", ephemeral=True)
-            return
-
-        if not self.pending_changes:
-            await interaction.response.send_message("❌ No changes to discard.", ephemeral=True)
-            return
-
-        # Clear pending changes
-        discarded_count = len(self.pending_changes)
-        self.pending_changes = {}
-
-        embed = discord.Embed(
-            title="❌ CHANGES DISCARDED",
-            description=f"Discarded {discarded_count} pending change(s).",
-            color=0xFF0000
-        )
-        embed.set_footer(text="STK Supply • Changes Discarded")
-
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-        logger.info(f"User {interaction.user.id} discarded card changes for {self.member_key}")
-
-# Function to automatically detect and add new members
-def auto_detect_members(guild):
-    """Automatically detect new members and add them to directory"""
-    if not guild:
-        return
-
-    # Get all members from the guild
-    for member in guild.members:
-        if member.bot:
-            continue
-
-        # Check if member is already in directory
-        member_exists = False
-        for member_key, member_data in STK_DIRECTORY.items():
-            if member_data["user_id"] == member.id:
-                member_exists = True
-                break
-
-        # If not in directory, add as new member
-        if not member_exists:
-            member_key = f"member_{member.id}"
-            STK_DIRECTORY[member_key] = {
-                "user_id": member.id,
-                "rank": "👤 Member 👤",
-                "role": "",
-                "description": "",
-                "specialties": [],
-                "status": "",
-                "joined": "2025",
-                "achievements": [],
-                "color": 0x808080,
-                "card_image": "https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif"
-            }
-            logger.info(f"Auto-added new member: {member.display_name} ({member.id})")
-
-# Function to get user's own card key
-def get_user_card_key(user_id: int) -> str:
-    """Get the card key for a user's own card"""
-    for member_key, member_data in STK_DIRECTORY.items():
-        if member_data["user_id"] == user_id:
-            return member_key
-
-    # If user not found, create new member entry
-    member_key = f"member_{user_id}"
-    STK_DIRECTORY[member_key] = {
-        "user_id": user_id,
-        "rank": "👤 Member 👤",
-        "role": "",
-        "description": "",
-        "specialties": [],
-        "status": "",
-        "joined": "2025",
-        "achievements": [],
-        "color": 0x808080,
-        "card_image": "https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif"
-    }
-    logger.info(f"Auto-created card for user: {user_id}")
-    return member_key
-
-# User directory command - shows Discord members only
-@bot.tree.command(name="user", description="Display user profile card - ADMIN ONLY")
-@app_commands.describe(user="Select a Discord user to view their profile (optional - defaults to your own card)")
-async def user_directory(interaction: discord.Interaction, user: discord.Member = None):
-    """Display user profile card"""
-    try:
-        # Check if user is admin
-        if not is_admin(interaction.user):
-            await interaction.response.send_message("❌ This command is restricted to STK admins only.", ephemeral=True)
-            return
-
-        # Check if interaction is already responded to or expired
-        if interaction.response.is_done():
-            return
-
-        # If no user specified, show interaction user's card
-        target_user = user or interaction.user
-
-        # Auto-detect members when command is used
-        auto_detect_members(interaction.guild)
-
-        # Get user's card key
-        member_key = get_user_card_key(target_user.id)
-        member_data = STK_DIRECTORY[member_key]
-
-        # Check if the target user is an admin (or has a specific role to be modded)
-        is_admin = False
-        admin_ids = [954818761729376357, 1385239185006268457, 666394721039417346, 1394285950464426066, 1106038406317871184] # Example admin IDs
-        if target_user.id in admin_ids:
-            is_admin = True
-
-        # Create user profile card
-        embed = discord.Embed(
-            title=f"{member_data['rank']}",
-            description=f"**{member_data['role']}**\n{member_data['description']}",
-            color=member_data['color'],
-            timestamp=datetime.datetime.now(datetime.timezone.utc)
-        )
-
-        # Set user avatar
-        embed.set_thumbnail(url=target_user.display_avatar.url)
-
-        # Member info
-        embed.add_field(
-            name="👤 User Info",
-            value=f"**Discord:** {target_user.mention}\n**Status:** {member_data['status']}\n**Joined:** {member_data['joined']}",
-            inline=True
-        )
-
-        # Specialties
-        embed.add_field(
-            name="🎯 Specialties",
-            value="\n".join([f"• {specialty}" for specialty in member_data['specialties']]) if member_data['specialties'] else "No specialties listed",
-            inline=True
-        )
-
-        # Earned Rewards
-        embed.add_field(
-            name="🏆 Earned Rewards",
-            value="\n".join([f"🔥 {achievement}" for achievement in member_data['achievements']]) if member_data['achievements'] else "No rewards earned yet",
-            inline=False
-        )
-
-        # STK branding
-        embed.set_footer(
-            text="STK Supply • User Directory",
-            icon_url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif"
-        )
-
-        # Add custom card image if available
-        card_image = member_data.get("card_image", "https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif")
-        embed.set_image(url=card_image)
-
-        # Add admin buttons if the user is an admin and the target is not themselves
-        if is_admin and target_user.id != interaction.user.id:
-            admin_view = AdminManagementView(target_user.id)
-            await interaction.response.send_message(embed=embed, view=admin_view)
-        else:
-            await interaction.response.send_message(embed=embed)
-
-    except Exception as e:
-        logger.error(f"Error in user_directory command: {e}")
-        # Only try to respond if interaction is still valid
-        try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
-        except (discord.NotFound, discord.HTTPException):
-            # Interaction expired or already handled - this is normal
-            pass
-
-# Admin management view
-class AdminManagementView(discord.ui.View):
-    def __init__(self, target_user_id: int):
-        super().__init__(timeout=180)
-        self.target_user_id = target_user_id
-
-    @discord.ui.button(label="Kick", style=discord.ButtonStyle.danger, emoji="👢", row=0)
-    async def kick_user(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Check admin permissions
-        admin_ids = [954818761729376357, 1385239185006268457, 666394721039417346, 1394285950464426066, 1106038406317871184]
-        if interaction.user.id not in admin_ids:
-            await interaction.response.send_message("❌ Only admins can use this action.", ephemeral=True)
-            return
-
-        modal = KickModal(self.target_user_id)
-        await interaction.response.send_modal(modal)
-
-    @discord.ui.button(label="Ban", style=discord.ButtonStyle.danger, emoji="⚖️", row=0)
-    async def ban_user(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Check admin permissions
-        admin_ids = [954818761729376357, 1385239185006268457, 666394721039417346, 1394285950464426066, 1106038406317871184]
-        if interaction.user.id not in admin_ids:
-            await interaction.response.send_message("❌ Only admins can use this action.", ephemeral=True)
-            return
-
-        modal = BanModal(self.target_user_id)
-        await interaction.response.send_modal(modal)
-
-    @discord.ui.button(label="Warn", style=discord.ButtonStyle.secondary, emoji="⚠️", row=0)
-    async def warn_user(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Check admin permissions
-        admin_ids = [954818761729376357, 1385239185006268457, 666394721039417346, 1394285950464426066, 1106038406317871184]
-        if interaction.user.id not in admin_ids:
-            await interaction.response.send_message("❌ Only admins can use this action.", ephemeral=True)
-            return
-
-        modal = WarnModal(self.target_user_id)
-        await interaction.response.send_modal(modal)
-
-    @discord.ui.button(label="Timeout", style=discord.ButtonStyle.secondary, emoji="⏳", row=1)
-    async def timeout_user(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Check admin permissions
-        admin_ids = [954818761729376357, 1385239185006268457, 666394721039417346, 1394285950464426066, 1106038406317871184]
-        if interaction.user.id not in admin_ids:
-            await interaction.response.send_message("❌ Only admins can use this action.", ephemeral=True)
-            return
-
-        modal = TimeoutModal(self.target_user_id)
-        await interaction.response.send_modal(modal)
-
-    @discord.ui.button(label="Give Reward", style=discord.ButtonStyle.success, emoji="🎁", row=1)
-    async def give_reward(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Check admin permissions
-        admin_ids = [954818761729376357, 1385239185006268457, 666394721039417346, 1394285950464426066, 1106038406317871184]
-        if interaction.user.id not in admin_ids:
-            await interaction.response.send_message("❌ Only admins can use this action.", ephemeral=True)
-            return
-
-        modal = RewardModal(self.target_user_id)
-        await interaction.response.send_modal(modal)
-
-
-# Edit Card Command - Users can only edit their own card
-@bot.tree.command(name="editcard", description="Edit your STK member directory card - ADMIN ONLY")
-async def edit_card(interaction: discord.Interaction):
-    """Edit your own STK member directory card"""
-    try:
-        # Check if user is admin
-        if not is_admin(interaction.user):
-            await interaction.response.send_message("❌ This command is restricted to STK admins only.", ephemeral=True)
-            return
-        # Auto-detect members when command is used
-        auto_detect_members(interaction.guild)
-
-        # Get user's own card
-        member_key = get_user_card_key(interaction.user.id)
-        member_data = STK_DIRECTORY[member_key]
-
-        # Create edit interface for user's own card
-        edit_view = CardEditView(member_key, interaction.user.id)
-        embed = discord.Embed(
-            title=f"🛠️ Editing Your Card: {member_data['rank']}",
-            description="**Your Card Editor**\nCustomize your member card below:",
-            color=member_data['color']
-        )
-
-        embed.add_field(
-            name="📝 Current Info",
-            value=f"**Role:** {member_data['role']}\n**Status:** {member_data['status']}\n**Joined:** {member_data['joined']}",
-            inline=True
-        )
-
-        embed.add_field(
-            name="🎯 Current Specialties",
-            value="\n".join([f"• {specialty}" for specialty in member_data['specialties'][:3]]) +
-                  (f"\n• ...and {len(member_data['specialties']) - 3} more" if len(member_data['specialties']) > 3 else ""),
-            inline=True
-        )
-
-        # Earned Rewards
-        embed.add_field(
-            name="🏆 Earned Rewards",
-            value="\n".join([f"🔥 {achievement}" for achievement in member_data['achievements']]) if member_data['achievements'] else "No rewards earned yet",
-            inline=False
-        )
-
-        embed.add_field(
-            name="⚠️ Note",
-            value="You can only edit your own card.\nRank, join date, and achievements cannot be changed.\nAchievements are awarded by admins only.",
-            inline=False
-        )
-
-        embed.set_footer(text="STK Supply • Your Card Editor • Changes save automatically")
-
-        await interaction.response.send_message(embed=embed, view=edit_view, ephemeral=True)
-
-    except Exception as e:
-        logger.error(f"Error in edit_card command: {e}")
-        await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
-
-
-# Setup STK Join command
-@bot.tree.command(name="setup_stkjoin", description="Setup the STK Join system - ADMIN ONLY")
-async def setup_stk_join(interaction: discord.Interaction):
-    """Setup the STK Join interface"""
-    try:
-        # Check if user is admin
-        if not is_admin(interaction.user):
-            await interaction.response.send_message("❌ This command is restricted to STK admins only.", ephemeral=True)
-            return
-
-        await interaction.response.send_message("🔄 Setting up STK Join...", ephemeral=True)
-
-        view = STKJoinView()
-        embed = view.create_join_embed()
-
-        await interaction.channel.send(embed=embed, view=view)
-        await interaction.edit_original_response(content="✅ **STK Join system live!**")
-
-    except Exception as e:
-        logger.error(f"Error in setup_stk_join command: {e}")
-        try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
-            else:
-                await interaction.edit_original_response(content="❌ Some shit went wrong.")
-        except discord.NotFound:
-            logger.error("Could not send error message")
-
-# STK Tryout management view
+# Payment View for ticket management
+class PaymentView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label='💀 PAY ZPOFE', style=discord.ButtonStyle.danger, emoji='💰', row=1)
+    async def pay_zpofe(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message(f"💀 **ZPOFE'S CASHAPP:**\n{PAYMENT_METHODS['zpofe']['cashapp']}\n\n**Send exact amount and screenshot proof!**", ephemeral=True)
+
+    @discord.ui.button(label='⚡ PAY DROW', style=discord.ButtonStyle.success, emoji='💰', row=1)
+    async def pay_drow(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message(f"⚡ **DROW'S CASHAPP:**\n{PAYMENT_METHODS['drow']['cashapp']}\n\n**Send exact amount and screenshot proof!**", ephemeral=True)
+
+# STK Tryout Management View
 class STKTryoutManagementView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -2997,15 +1984,15 @@ class STKTryoutManagementView(discord.ui.View):
             return
 
         embed = discord.Embed(
-            title="❌ REJECTED",
-            description="**You didn't make it**\n\nYou're not STK material. Better luck next time.",
+            title="❌ STK TRYOUT REJECTED",
+            description="**Better luck next time.**\n\nYou didn't meet our standards.",
             color=0xff0000,
-            timestamp=datetime.datetime.now(datetime.datetime.now(datetime.timezone.utc))
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
 
         await interaction.response.send_message(embed=embed)
 
-    @discord.ui.button(label='🔒 CLOSE', style=discord.ButtonStyle.secondary, custom_id='close_stk_tryout')
+    @discord.ui.button(label='🔒 CLOSE', style=discord.ButtonStyle.secondary, custom_id='close_tryout')
     async def close_tryout(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Check permissions
         has_permission = False
@@ -3015,142 +2002,41 @@ class STKTryoutManagementView(discord.ui.View):
             has_permission = True
 
         if not has_permission:
-            await interaction.response.send_message("❌ Only STK members can close tryouts.", ephemeral=True)
+            await interaction.response.send_message("❌ Only STK members can do this.", ephemeral=True)
+            return
+
+        await interaction.response.send_message("🔒 **Closing tryout channel in 5 seconds...**")
+        await asyncio.sleep(5)
+        await interaction.channel.delete()
+
+# Ticket Management View
+class TicketManagementView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label='✅ COMPLETE', style=discord.ButtonStyle.success, custom_id='complete_order')
+    async def complete_order(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Check permissions
+        has_permission = False
+        if BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
+            has_permission = True
+        elif interaction.user.guild_permissions.manage_channels:
+            has_permission = True
+
+        if not has_permission:
+            await interaction.response.send_message("❌ Only STK staff can do this.", ephemeral=True)
             return
 
         embed = discord.Embed(
-            title="🔒 Tryout Closed",
-            description="This tryout is now closed.",
-            color=0xff0000,
+            title="✅ ORDER COMPLETED",
+            description="**Thank you for your business!**\n\nOrder has been marked as completed.",
+            color=0x00ff00,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
 
         await interaction.response.send_message(embed=embed)
 
-        await asyncio.sleep(5)
-        try:
-            await interaction.channel.delete(reason="Tryout closed by STK member")
-        except:
-            pass
-
-@bot.tree.command(name="clear", description="Delete bot messages from this channel - ADMIN ONLY")
-@app_commands.describe(
-    amount="Number of bot messages to delete (default: 10, max: 100)"
-)
-async def clear_messages(interaction: discord.Interaction, amount: int = 10):
-    """Delete bot messages from the current channel"""
-    try:
-        if amount > 100:
-            amount = 100
-        elif amount < 1:
-            amount = 1
-
-        # Check if user is admin
-        if not is_admin(interaction.user):
-            await interaction.response.send_message("❌ This command is restricted to STK admins only.", ephemeral=True)
-            return
-
-        await interaction.response.send_message(f"🧹 Clearing up to {amount} messages...", ephemeral=True)
-
-        messages_deleted = 0
-        async for message in interaction.channel.history(limit=500):
-            if messages_deleted >= amount:
-                break
-
-            if message.author == bot.user:
-                try:
-                    await message.delete()
-                    messages_deleted += 1
-                    await asyncio.sleep(0.5)
-                except discord.errors.NotFound:
-                    continue
-                except discord.errors.Forbidden:
-                    continue
-
-        if messages_deleted > 0:
-            await interaction.followup.send(f"✅ Cleared {messages_deleted} message(s).", ephemeral=True)
-        else:
-            await interaction.followup.send("ℹ️ No messages found to clear.", ephemeral=True)
-
-    except Exception as e:
-        logger.error(f"Error in clear command: {e}")
-        if not interaction.response.is_done():
-            await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
-        else:
-            await interaction.followup.send("❌ Some shit went wrong.", ephemeral=True)
-
-# Payment view with buttons
-class PaymentView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label='💀 PAY ZPOFE', style=discord.ButtonStyle.success, custom_id='pay_zpofe')
-    async def pay_zpofe(self, interaction: discord.Interaction, button: discord.ui.Button):
-        embed = discord.Embed(
-            title="💀 ZPOFE'S PAYMENT",
-            description="**Send payment to Zpofe:**",
-            color=0x00ff00
-        )
-
-        embed.add_field(
-            name="💰 CashApp Link",
-            value=f"[Click here to pay Zpofe]({PAYMENT_METHODS['zpofe']['cashapp']})",
-            inline=False
-        )
-
-        embed.add_field(
-            name="📱 CashApp Tag",
-            value=f"`{PAYMENT_METHODS['zpofe']['cashapp']}`",
-            inline=False
-        )
-
-        embed.add_field(
-            name="📋 Instructions",
-            value="1️⃣ Click the link above\n2️⃣ Send the exact amount\n3️⃣ Screenshot the payment\n4️⃣ Send proof in this ticket",
-            inline=False
-        )
-
-        if PAYMENT_METHODS["zpofe"]["qr_code"]:
-            embed.set_image(url=PAYMENT_METHODS["zpofe"]["qr_code"])
-
-        embed.set_footer(text="STK Supply • Zpofe's Payment")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    @discord.ui.button(label='⚡ PAY DROW', style=discord.ButtonStyle.primary, custom_id='pay_drow')
-    async def pay_drow(self, interaction: discord.Interaction, button: discord.ui.Button):
-        embed = discord.Embed(
-            title="⚡ DROW'S PAYMENT",
-            description="**Send payment to Drow:**",
-            color=0x3498db
-        )
-
-        embed.add_field(
-            name="💰 CashApp Link",
-            value=f"[Click here to pay Drow]({PAYMENT_METHODS['drow']['cashapp']})",
-            inline=False
-        )
-
-        embed.add_field(
-            name="📱 CashApp Tag",
-            value=f"`{PAYMENT_METHODS['drow']['cashapp']}`",
-            inline=False
-        )
-
-        embed.add_field(
-            name="📋 Instructions",
-            value="1️⃣ Click the link above\n2️⃣ Send the exact amount\n3️⃣ Screenshot the payment\n4️⃣ Send proof in this ticket",
-            inline=False
-        )
-
-        embed.set_footer(text="STK Supply • Drow's Payment")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
-# Ticket management view
-class TicketManagementView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label='🔒 CLOSE', style=discord.ButtonStyle.danger, custom_id='close_ticket')
+    @discord.ui.button(label='🔒 CLOSE', style=discord.ButtonStyle.secondary, custom_id='close_ticket')
     async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Check permissions
         has_permission = False
@@ -3160,112 +2046,147 @@ class TicketManagementView(discord.ui.View):
             has_permission = True
 
         if not has_permission:
-            await interaction.response.send_message("❌ Only staff can close tickets.", ephemeral=True)
+            await interaction.response.send_message("❌ Only STK staff can do this.", ephemeral=True)
             return
 
-        embed = discord.Embed(
-            title="🔒 Ticket Closed",
-            description="This order is closed. Thanks for business!",
-            color=0xff0000,
-            timestamp=datetime.datetime.now(datetime.timezone.utc)
-        )
-
-        await interaction.response.send_message(embed=embed)
-
+        await interaction.response.send_message("🔒 **Closing ticket in 5 seconds...**")
         await asyncio.sleep(5)
-        try:
-            await interaction.channel.delete(reason="Ticket closed by staff")
-        except:
-            pass
+        await interaction.channel.delete()
 
-    @discord.ui.button(label='✅ MARK DONE', style=discord.ButtonStyle.success, custom_id='mark_completed')
-    async def mark_completed(self, interaction: discord.Interaction, button: discord.ui.Button):
+# Setup shop command
+@bot.tree.command(name="setup", description="Setup the STK Shop")
+async def setup_shop(interaction: discord.Interaction):
+    """Setup the STK Shop interface"""
+    try:
         # Check permissions
         has_permission = False
-        if BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
+        if interaction.user.guild_permissions.manage_channels:
             has_permission = True
-        elif interaction.user.guild_permissions.manage_channels:
+        elif BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
             has_permission = True
 
         if not has_permission:
-            await interaction.response.send_message("❌ Only staff can mark orders complete.", ephemeral=True)
+            await interaction.response.send_message("❌ You need admin permissions.", ephemeral=True)
             return
 
-        embed = discord.Embed(
-            title="✅ Order Complete",
-            description="**Order fulfilled!**\n\nThanks for choosing STK Supply!",
-            color=0x00ff00,
-            timestamp=datetime.datetime.now(datetime.timezone.utc)
-        )
+        await interaction.response.send_message("🔄 Setting up STK Supply...", ephemeral=True)
 
-        await interaction.response.send_message(embed=embed)
+        view = PersistentSTKShopView()
+        embed = view.create_shop_embed()
 
-
-
-
-
-
-
-@bot.tree.command(name="bio", description="Learn about STK Supply Bot - ADMIN ONLY")
-async def bot_bio(interaction: discord.Interaction):
-    """Display STK Supply Bot bio and information"""
-    try:
-        # Check if user is admin
-        if not is_admin(interaction.user):
-            await interaction.response.send_message("❌ This command is restricted to STK admins only.", ephemeral=True)
-            return
-        embed = discord.Embed(
-            title="💀 STK SUPPLY BOT 💀",
-            description="**The Block's Most Advanced Digital Connect**",
-            color=0x39FF14,
-            timestamp=datetime.datetime.now(datetime.timezone.utc)
-        )
-
-        embed.add_field(
-            name="🤖 About Me",
-            value="I'm the official STK Supply automation system - built to handle business 24/7. No human needed, just pure digital efficiency.",
-            inline=False
-        )
-
-        embed.add_field(
-            name="🏆 My Capabilities",
-            value="• **Instant Order Processing** - Cart to delivery in minutes\n• **Smart User Management** - Auto-profiles & achievements\n• **Secure Ticket System** - Private order channels\n• **Multi-Shop Support** - Expanding to new territories",
-            inline=False
-        )
-
-        embed.add_field(
-            name="💻 Tech Stack",
-            value="**Language:** Python 3.11+\n**Framework:** Discord.py\n**Database:** SQLite\n**Hosting:** Replit Cloud\n**Uptime:** 99.9% guaranteed",
-            inline=True
-        )
-
-        embed.add_field(
-            name="🔥 Street Stats",
-            value="**Orders Processed:** 50+\n**Response Time:** <2 seconds\n**Customer Satisfaction:** 99.9%\n**Downtime:** Basically none",
-            inline=True
-        )
-
-        embed.add_field(
-            name="⚡ Developer Credits",
-            value="**Lead Dev:** Zpofe\n**Systems:** Custom STK architecture\n**Purpose:** Revolutionizing digital street commerce",
-            inline=False
-        )
-
-        embed.add_field(
-            name="🎯 Mission Statement",
-            value="*\"Bringing the streets into the digital age - one order at a time. No human errors, no delays, just pure automated excellence.\"*",
-            inline=False
-        )
-
-        embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif")
-        embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif")
-        embed.set_footer(text="STK Supply • Advanced AI Commerce System • Built Different", icon_url=interaction.guild.me.display_avatar.url)
-
-        await interaction.response.send_message(embed=embed)
+        await interaction.channel.send(embed=embed, view=view)
+        await interaction.edit_original_response(content="✅ **STK Supply live!**")
 
     except Exception as e:
-        logger.error(f"Error in bot_bio command: {e}")
-        await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
+        logger.error(f"Error in setup_shop command: {e}")
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
+            else:
+                await interaction.edit_original_response(content="❌ Some shit went wrong.")
+        except discord.NotFound:
+            logger.error("Could not send error message")
+
+
+
+# Auto-send STK info message (prevent duplicates)
+sent_messages = set()
+
+async def send_stk_info_if_needed(channel):
+    """Send STK info message if not already sent in this channel"""
+    if channel.id in sent_messages:
+        return
+    
+    try:
+        embed = discord.Embed(
+            title="💀 STK (SHOOT TO KILL) 💀",
+            description="**THE MOST FEARED GANG IN THE STREETS**",
+            color=0xFF0000,
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
+        )
+
+        embed.add_field(
+            name="🏙️ WHO WE ARE",
+            value="STK (Shoot to Kill) is the most elite and respected gang operating in Tha Bronx 3. We provide premium undetected services, fast dupes, and maintain our reputation through elite operations and unmatched street credibility.",
+            inline=False
+        )
+
+        embed.add_field(
+            name="👑 OUR LEADERSHIP",
+            value="💎 **ZPOFE** - Chief Architect & Elite Developer\n⚡ **ASAI** - Operations General\n🔥 **DROW** - Multi-Role Elite\n🪖 Professional hierarchy with proven results",
+            inline=True
+        )
+
+        embed.add_field(
+            name="🎯 WHAT WE PROVIDE",
+            value="• Elite quality undetected services\n• Fast dupes with infinite money supply\n• Premium weapons & luxury items\n• 24/7 business operations\n• Most trusted connects in the game\n• Response time: 2-5 minutes\n• 99.9% success rate",
+            inline=True
+        )
+
+        embed.add_field(
+            name="📍 OUR TERRITORY",
+            value="🏙️ **Primary Base:** Tha Bronx 3\n🌍 **Expanding:** New territories coming soon\n💯 **Reputation:** 50+ satisfied customers\n⚡ **Business Hours:** 24/7 grinding",
+            inline=False
+        )
+
+        embed.add_field(
+            name="💀 THE STK CODE",
+            value="• Respect the gang hierarchy\n• Elite members only - no weak links\n• Business first, always professional\n• Undetected services guaranteed\n• Fast delivery, no delays",
+            inline=True
+        )
+
+        embed.add_field(
+            name="🔥 JOIN THE ELITE",
+            value="We don't just run the streets, we own them. Welcome to STK territory - where elite quality meets undetected services and infinite supply.",
+            inline=True
+        )
+
+        embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif")
+        embed.set_footer(text="STK Supply • Elite Quality • Undetected Services • Fast Dupes • Infinite Money Supply", icon_url=channel.guild.me.display_avatar.url)
+
+        await channel.send("🚨 **STK TERRITORY** 🚨", embed=embed)
+        sent_messages.add(channel.id)
+        
+    except Exception as e:
+        logger.error(f"Error sending STK info: {e}")
+
+# Setup STK Join command
+@bot.tree.command(name="setupjoinstk", description="Setup the STK Join system")
+async def setup_stk_join(interaction: discord.Interaction):
+    """Setup the STK Join interface"""
+    try:
+        # Check permissions
+        has_permission = False
+        if interaction.user.guild_permissions.manage_channels:
+            has_permission = True
+        elif BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
+            has_permission = True
+
+        if not has_permission:
+            await interaction.response.send_message("❌ You need admin permissions.", ephemeral=True)
+            return
+
+        await interaction.response.send_message("🔄 Setting up STK Join system...", ephemeral=True)
+
+        view = STKJoinView()
+        embed = view.create_join_embed()
+
+        await interaction.channel.send(embed=embed, view=view)
+        await interaction.edit_original_response(content="✅ **STK Join system live!**")
+
+        # Auto-send STK info message
+        await send_stk_info_if_needed(interaction.channel)
+
+    except Exception as e:
+        logger.error(f"Error in setup_stk_join command: {e}")
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
+            else:
+                await interaction.edit_original_response(content="❌ Some shit went wrong.")
+        except discord.NotFound:
+            logger.error("Could not send error message")
+
 
 # Error handling
 @bot.tree.error
