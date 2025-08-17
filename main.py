@@ -70,11 +70,11 @@ class ShopBot(commands.Bot):
         except Exception as e:
             logger.error(f'Failed to sync commands: {e}')
 
+        # Send STK Board message to specified channel
+        await self.send_stk_board_message()
+
         # Start cool status rotation
         self.status_task = asyncio.create_task(self.rotate_status())
-
-        # Send auto-welcome message to specific channel
-        await self.send_auto_welcome_message()
 
     async def rotate_status(self):
         """Rotate through cool status messages"""
@@ -142,58 +142,8 @@ class ShopBot(commands.Bot):
             except Exception as e:
                 logger.error(f"Failed to assign role to {member.display_name}: {e}")
 
-            # Create welcome embed
-            embed = discord.Embed(
-                title="💀 WELCOME TO STK (SHOOT TO KILL) 💀",
-                description=f"**YO {member.mention} WELCOME TO THE FAMILY!**",
-                color=0xFF0000,
-                timestamp=datetime.datetime.now(datetime.timezone.utc)
-            )
-
-            embed.add_field(
-                name="🔥 THIS IS STK 🔥",
-                value="**THE BEST SERVICES AND MOST FEARED GANG OUT IN THE STREETS ON THA BRONX 3**\n\nWe support ALL services for Tha Bronx 3 and more to come soon!",
-                inline=False
-            )
-
-            embed.add_field(
-                name="🎯 What We About",
-                value="💀 **ELITE SERVICES**\n🔫 **STREET REPUTATION** \n💰 **NO BS BUSINESS**\n⚡ **24/7 GRINDING**",
-                inline=True
-            )
-
-            embed.add_field(
-                name="📍 Our Territory",
-                value="🏙️ **THA BRONX 3**\n🌍 **EXPANDING SOON**\n💯 **WORLDWIDE CONNECT**",
-                inline=True
-            )
-
-            embed.add_field(
-                name="🙏 THANK YOU FOR JOINING!",
-                value="**Welcome to the most elite operation in the game. Let's get this money!**",
-                inline=False
-            )
-
-            embed.set_thumbnail(url=member.display_avatar.url)
-            embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif")
-            embed.set_footer(text="STK (Shoot to Kill) • Most Feared Gang • Welcome to the streets", icon_url=member.guild.me.display_avatar.url)
-
-            # Send welcome message to general channel or first available channel
-            welcome_channel = None
-            for channel in member.guild.text_channels:
-                if channel.name.lower() in ['general', 'welcome', 'chat']:
-                    welcome_channel = channel
-                    break
-
-            if not welcome_channel:
-                welcome_channel = member.guild.text_channels[0] if member.guild.text_channels else None
-
-            if welcome_channel:
-                try:
-                    await welcome_channel.send(f"{member.mention} **JUST JOINED THE GANG!** 💀🔥", embed=embed)
-                    logger.info(f"Sent welcome message for {member.display_name}")
-                except Exception as e:
-                    logger.error(f"Failed to send welcome message: {e}")
+            # Send welcome message
+            await self.send_welcome_to_member(member)
 
             logger.info(f"New member joined: {member.display_name} ({member.id})")
 
@@ -311,70 +261,90 @@ class ShopBot(commands.Bot):
         except Exception as e:
             logger.error(f"Error in member remove event: {e}")
 
-    async def send_auto_welcome_message(self):
-        """Sends an automated welcome message to a specific channel."""
-        channel_id = 1398741781331447890  # Target channel ID
+    async def send_welcome_to_member(self, member):
+        """Send welcome message when a member joins"""
+        try:
+            embed = discord.Embed(
+                title="💀 STK (SHOOT TO KILL) 💀",
+                description="**THE MOST FEARED GANG IN THE STREETS**",
+                color=0xFF0000,
+                timestamp=datetime.datetime.now(datetime.timezone.utc)
+            )
 
-        for guild in self.guilds:
-            channel = guild.get_channel(channel_id)
-            if channel and isinstance(channel, discord.TextChannel):
-                try:
-                    # Check if bot has permissions before sending
-                    permissions = channel.permissions_for(guild.me)
-                    if not permissions.send_messages or not permissions.embed_links:
-                        logger.warning(f"Missing permissions in channel {channel.name} ({channel_id}) in guild {guild.name}")
-                        continue
+            embed.add_field(
+                name="🏙️ WHO WE ARE",
+                value="STK (Shoot to Kill) is the most elite and respected gang operating in Tha Bronx 3. We provide premium undetected services, fast dupes, and maintain our reputation through elite operations and unmatched street credibility.",
+                inline=False
+            )
 
-                    embed = discord.Embed(
-                        title="💀 STK (SHOOT TO KILL) 💀",
-                        description="**WELCOME TO THE MOST FEARED GANG IN THE STREETS**",
-                        color=0xFF0000,
-                        timestamp=datetime.datetime.now(datetime.timezone.utc)
-                    )
+            embed.add_field(
+                name="👑 OUR LEADERSHIP",
+                value="💎 **ZPOFE** - Chief Architect & Elite Developer\n⚡ **ASAI** - Operations General\n🔥 **DROW** - Multi-Role Elite\n\n🪖 Professional hierarchy with proven results",
+                inline=True
+            )
 
-                    embed.add_field(
-                        name="🏙️ WHO WE ARE",
-                        value="**STK (Shoot to Kill)** is the most feared and respected gang operating in Tha Bronx 3. We provide the best services and maintain our reputation through elite operations and unmatched street credibility.",
-                        inline=False
-                    )
+            embed.add_field(
+                name="🎯 WHAT WE PROVIDE",
+                value="• Elite quality undetected services\n• Fast dupes with infinite money supply\n• Premium weapons & luxury items\n• 24/7 business operations\n• Most trusted connects in the game\n• Response time: 2-5 minutes\n• 99.9% success rate",
+                inline=True
+            )
 
-                    embed.add_field(
-                        name="👑 OUR LEADERSHIP",
-                        value="💎 **ZPOFE** - Chief Architect & Elite Developer\n⚡ **ASAI** - Operations General\n🔥 **DROW** - Multi-Role Elite\n👏 **TOP SMACKA** - Elite Operator",
-                        inline=True
-                    )
+            embed.add_field(
+                name="📍 OUR TERRITORY",
+                value="🏙️ **Primary Base:** Tha Bronx 3\n🌍 **Expanding:** New territories coming soon\n💯 **Reputation:** 50+ satisfied customers\n⚡ **Business Hours:** 24/7 grinding",
+                inline=False
+            )
 
-                    embed.add_field(
-                        name="🎯 WHAT WE DO",
-                        value="• Premium street services\n• Elite operations\n• Territory expansion\n• 24/7 business operations\n• Most trusted connects in the game",
-                        inline=True
-                    )
+            embed.add_field(
+                name="💀 THE STK CODE",
+                value="• Respect the gang hierarchy\n• Elite members only - no weak links\n• Business first, always professional\n• Undetected services guaranteed\n• Fast delivery, no delays",
+                inline=True
+            )
 
-                    embed.add_field(
-                        name="📍 OUR TERRITORY",
-                        value="🏙️ **Primary:** Tha Bronx 3\n🌍 **Expanding:** New territories coming soon\n💯 **Reputation:** 50+ satisfied customers\n⚡ **Response Time:** 2-5 minutes",
-                        inline=False
-                    )
+            embed.add_field(
+                name="🔥 JOIN THE ELITE",
+                value="We don't just run the streets, we own them. Welcome to STK territory - where elite quality meets undetected services and infinite supply.",
+                inline=True
+            )
 
-                    embed.add_field(
-                        name="💀 THE STK CODE",
-                        value="**Respect the gang • No weak shit allowed • Business first • Elite members only**\n\nWe don't just run the streets, we own them. Welcome to STK territory.",
-                        inline=False
-                    )
+            embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif")
+            embed.set_footer(text="STK Supply • Elite Quality • Undetected Services • Fast Dupes • Infinite Money Supply", icon_url=member.guild.me.display_avatar.url)
 
-                    embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif")
-                    embed.set_footer(text="STK (Shoot to Kill) • Most Feared Gang • Welcome to Our Territory", icon_url=guild.me.display_avatar.url)
+            # Find appropriate channel
+            welcome_channel = None
+            for channel in member.guild.text_channels:
+                if channel.name.lower() in ['general', 'welcome', 'chat']:
+                    welcome_channel = channel
+                    break
 
-                    await channel.send("🚨 **STK TERRITORY** 🚨", embed=embed)
-                    logger.info(f"Sent auto-welcome message to channel {channel.name} ({channel_id}) in guild {guild.name}.")
-                except discord.Forbidden:
-                    logger.error(f"Missing permissions to send message in channel {channel_id} in guild {guild.name}.")
-                except Exception as e:
-                    logger.error(f"Failed to send auto-welcome message to channel {channel_id} in guild {guild.name}: {e}")
-            elif channel and not isinstance(channel, discord.TextChannel):
-                logger.warning(f"Channel ID {channel_id} in guild {guild.name} is not a text channel.")
-            # If channel is None, it means the bot isn't in that guild or the channel doesn't exist.
-            # No specific error needed here as it's a normal case for the bot to not be in all guilds.
+            if not welcome_channel:
+                welcome_channel = member.guild.text_channels[0] if member.guild.text_channels else None
+
+            if welcome_channel:
+                await welcome_channel.send(f"🚨 **STK TERRITORY** 🚨\n\n{member.mention} **WELCOME TO THE GANG!** 💀🔥", embed=embed)
+                logger.info(f"Sent welcome message for {member.display_name}")
+
+        except Exception as e:
+            logger.error(f"Error sending welcome message: {e}")
+
+    async def send_stk_board_message(self):
+        """Send STK Board message to specified channel on startup"""
+        try:
+            target_channel_id = 1398741781331447890
+            channel = self.get_channel(target_channel_id)
+            
+            if not channel:
+                logger.error(f"Could not find channel with ID {target_channel_id}")
+                return
+
+            view = STKBoardView()
+            embed = view.create_board_embed()
+
+            await channel.send(embed=embed, view=view)
+            logger.info(f"Sent STK Board message to channel {channel.name}")
+
+        except Exception as e:
+            logger.error(f"Error sending STK Board message: {e}")
 
 # Create bot instance
 bot = ShopBot()
@@ -1286,9 +1256,9 @@ class PersistentSTKShopView(discord.ui.View):
 
     def create_shop_embed(self):
         embed = discord.Embed(
-            title="💀 STK SUPPLY GANG 💀",
-            description="**The Block's Most Trusted Connect**\n**🔥 QUALITY** • **⚡ FAST** • **💯 NO BS**",
-            color=0x39FF14
+            title="💀 STK (SHOOT TO KILL) 💀",
+            description="**THE MOST FEARED GANG IN THE STREETS**",
+            color=0xFF0000
         )
 
         # Add images
@@ -1296,83 +1266,52 @@ class PersistentSTKShopView(discord.ui.View):
         embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif?ex=68a1c8a6&is=68a07726&hm=a73756ad78ccbf90f487df0045bc1ce19d558842ea8527d1444691fd4a29dc74&")
 
         embed.add_field(
-            name="🔫 WEAPONS",
-            value="**Street arsenal** • $1-$3\nFully • Buttons • Switches • Binary • AR9",
-            inline=True
-        )
-
-        embed.add_field(
-            name="💰 MONEY",
-            value="**Clean cash** • $1-$2\nMax money/bank • Regular & Gamepass",
-            inline=True
-        )
-
-        embed.add_field(
-            name="📦 PREMIUM",
-            value="**High-end gear** • $1+\nWatches • Scripts • Exclusive drops",
-            inline=True
-        )
-
-        embed.add_field(
-            name="👑 THE CREW",
-            value="💀 **ZPOFE** • ⚡ **DROW**",
+            name="🏙️ WHO WE ARE",
+            value="STK (Shoot to Kill) is the most elite and respected gang operating in Tha Bronx 3. We provide premium undetected services, fast dupes, and maintain our reputation through elite operations and unmatched street credibility.",
             inline=False
         )
 
         embed.add_field(
-            name="🏆 STREET CRED",
-            value="💀 **50+** customers • ⚡ **2-5 min** delivery\n🔥 **99.9%** success • 💯 **24/7** grinding",
+            name="👑 OUR LEADERSHIP",
+            value="💎 **ZPOFE** - Chief Architect & Elite Developer\n⚡ **ASAI** - Operations General\n🔥 **DROW** - Multi-Role Elite\n🏛️ **AVERY** - STK Founder\n\n🪖 Professional hierarchy with proven results",
             inline=True
         )
 
         embed.add_field(
-            name="💼 HOW WE MOVE",
-            value="🎯 Check inventory • 💀 Pick gear\n💰 Hit up connect • ⚡ Get delivery",
+            name="🎯 WHAT WE PROVIDE",
+            value="• Elite quality undetected services\n• Fast dupes with infinite money supply\n• Premium weapons & luxury items\n• 24/7 business operations\n• Most trusted connects in the game\n• Response time: 2-5 minutes\n• 99.9% success rate",
             inline=True
         )
 
-        embed.set_footer(text="STK Supply • No BS business • Holding it down since day one")
+        embed.add_field(
+            name="📍 OUR TERRITORY",
+            value="🏙️ **Primary Base:** Tha Bronx 3\n🌍 **Expanding:** New territories coming soon\n💯 **Reputation:** 50+ satisfied customers\n⚡ **Business Hours:** 24/7 grinding",
+            inline=False
+        )
+
+        embed.add_field(
+            name="💀 THE STK CODE",
+            value="• Respect the gang hierarchy\n• Elite members only - no weak links\n• Business first, always professional\n• Undetected services guaranteed\n• Fast delivery, no delays",
+            inline=True
+        )
+
+        embed.add_field(
+            name="🔥 JOIN THE ELITE",
+            value="We don't just run the streets, we own them. Welcome to STK territory - where elite quality meets undetected services and infinite supply.",
+            inline=True
+        )
+
+        embed.set_footer(text="STK Supply • Elite Quality • Undetected Services • Fast Dupes • Infinite Money Supply")
         return embed
 
-    @discord.ui.button(label='🔫 WEAPONS', style=discord.ButtonStyle.danger, emoji='💥', row=1)
-    async def weapons_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Each user gets their own weapon shop view
-        view = WeaponShopView(interaction.user.id)
-        embed = view.create_weapon_embed()
-        await interaction.response.edit_message(embed=embed, view=view)
+    @discord.ui.button(label='📞 CONTACT', style=discord.ButtonStyle.secondary, emoji='📱', row=1)
+    async def contact_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("📞 **CONTACT STK**\n\nDM **Zpofe** or **Drow** for business inquiries.\n\n⚡ **Response time:** Usually within a few hours\n💀 **We're always grinding!**", ephemeral=True)
 
-    @discord.ui.button(label='💰 MONEY', style=discord.ButtonStyle.success, emoji='💵', row=1)
-    async def money_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Each user gets their own money shop view
-        view = MoneyShopView(interaction.user.id)
-        embed = view.create_money_embed()
-        await interaction.response.edit_message(embed=embed, view=view)
-
-    @discord.ui.button(label='📦 PREMIUM', style=discord.ButtonStyle.secondary, emoji='💎', row=1)
-    async def other_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Each user gets their own other shop view
-        view = OtherShopView(interaction.user.id)
-        embed = view.create_other_embed()
-        await interaction.response.edit_message(embed=embed, view=view)
-
-    @discord.ui.button(label='ℹ️ INFO', style=discord.ButtonStyle.primary, emoji='📋', row=2)
-    async def info_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Each user gets their own info view
-        view = InfoView(interaction.user.id)
-        embed = view.create_info_embed()
-        await interaction.response.edit_message(embed=embed, view=view)
-
-    @discord.ui.button(label='🛒 CART', style=discord.ButtonStyle.primary, emoji='🔥', row=2)
-    async def cart_tab(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Each user gets their own cart view
-        view = CartView(interaction.user.id)
-        embed = view.create_cart_embed()
-        await interaction.response.edit_message(embed=embed, view=view)
-
-    @discord.ui.button(label='🏪 ALL SHOPS', style=discord.ButtonStyle.secondary, emoji='🌍', row=3)
-    async def view_all_shops(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = ShopSelectorView()
-        embed = view.create_selector_embed()
+    @discord.ui.button(label='👥 MEET THE TEAM', style=discord.ButtonStyle.primary, emoji='👑', row=1)
+    async def meet_team(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = STKBoardView()
+        embed = view.create_board_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
 # STK Join System
@@ -1448,7 +1387,7 @@ async def create_stk_join_ticket(interaction: discord.Interaction):
                 guild.default_role: discord.PermissionOverwrite(read_messages=False, send_messages=False),
                 guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_channels=True)
             }
-            
+
             # Add staff role permissions
             staff_roles = ['staff', 'mod', 'admin', 'owner', 'stk', 'management', 'manager']
             for role in guild.roles:
@@ -1610,7 +1549,7 @@ async def create_purchase_ticket(interaction: discord.Interaction, cart):
                 guild.default_role: discord.PermissionOverwrite(read_messages=False, send_messages=False),
                 guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_channels=True)
             }
-            
+
             # Add staff role permissions
             staff_roles = ['staff', 'mod', 'admin', 'owner', 'stk', 'management', 'manager']
             for role in guild.roles:
@@ -1643,12 +1582,6 @@ async def create_purchase_ticket(interaction: discord.Interaction, cart):
     for role in guild.roles:
         if any(keyword in role.name.lower() for keyword in staff_roles):
             overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_messages=True)
-
-    # Add admin role permissions if configured
-    if BotConfig.ADMIN_ROLE_ID:
-        admin_role = guild.get_role(BotConfig.ADMIN_ROLE_ID)
-        if admin_role:
-            overwrites[admin_role] = discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_messages=True)
 
     # Add specific STK members permissions
     stk_member_ids = [1385239185006268457, 954818761729376357, 1394285950464426066]  # Zpofe, Asai, Drow
@@ -1930,19 +1863,6 @@ async def send_delivery_tutorials(channel, cart):
         watch_embed.set_footer(text="STK Supply • Watch Delivery")
         await channel.send(embed=watch_embed)
 
-# Payment View for ticket management
-class PaymentView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label='💀 PAY ZPOFE', style=discord.ButtonStyle.danger, emoji='💰', row=1)
-    async def pay_zpofe(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message(f"💀 **ZPOFE'S CASHAPP:**\n{PAYMENT_METHODS['zpofe']['cashapp']}\n\n**Send exact amount and screenshot proof!**", ephemeral=True)
-
-    @discord.ui.button(label='⚡ PAY DROW', style=discord.ButtonStyle.success, emoji='💰', row=1)
-    async def pay_drow(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message(f"⚡ **DROW'S CASHAPP:**\n{PAYMENT_METHODS['drow']['cashapp']}\n\n**Send exact amount and screenshot proof!**", ephemeral=True)
-
 # STK Tryout Management View
 class STKTryoutManagementView(discord.ui.View):
     def __init__(self):
@@ -2096,7 +2016,7 @@ async def send_stk_info_if_needed(channel):
     """Send STK info message if not already sent in this channel"""
     if channel.id in sent_messages:
         return
-    
+
     try:
         embed = discord.Embed(
             title="💀 STK (SHOOT TO KILL) 💀",
@@ -2113,7 +2033,7 @@ async def send_stk_info_if_needed(channel):
 
         embed.add_field(
             name="👑 OUR LEADERSHIP",
-            value="💎 **ZPOFE** - Chief Architect & Elite Developer\n⚡ **ASAI** - Operations General\n🔥 **DROW** - Multi-Role Elite\n🪖 Professional hierarchy with proven results",
+            value="💎 **ZPOFE** - Chief Architect & Elite Developer\n⚡ **ASAI** - Operations General\n🔥 **DROW** - Multi-Role Elite\n\n🪖 Professional hierarchy with proven results",
             inline=True
         )
 
@@ -2146,9 +2066,441 @@ async def send_stk_info_if_needed(channel):
 
         await channel.send("🚨 **STK TERRITORY** 🚨", embed=embed)
         sent_messages.add(channel.id)
-        
+
     except Exception as e:
         logger.error(f"Error sending STK info: {e}")
+
+# STK Board data - Now editable by members
+STK_BOARD_MEMBERS = {
+    "zpofe": {
+        "id": 1385239185006268457,
+        "name": "ZPOFE",
+        "title": "#1 SELLER",
+        "roles": ["#1 Coder", "#1 Seller for Tha Bronx", "#1 Seller for SB", "#1 Seller for Philly"],
+        "description": "Chief Architect & Elite Developer",
+        "emoji": "💎",
+        "custom_fields": {},
+        "achievements": ["💎 Elite Coding Skills", "🔥 Multi-Territory Domination", "⚡ 3+ Years Experience", "💯 Unmatched Success Rate"],
+        "specialties": ["🏙️ Tha Bronx 3", "🌆 South Bronx (SB)", "🏢 Philadelphia", "🌍 Expanding Worldwide"]
+    },
+    "asai": {
+        "id": 954818761729376357,
+        "name": "ASAI",
+        "title": "OWNER",
+        "roles": ["Operations General", "STK Owner"],
+        "description": "STK Operations Leader",
+        "emoji": "👑",
+        "custom_fields": {},
+        "achievements": ["👑 STK Leadership", "⚡ Operations Master", "💼 Business Strategy", "🔥 Gang Coordination"],
+        "specialties": ["🎯 Gang Operations", "💰 Business Management", "⚔️ Territory Control", "🛡️ Member Protection"]
+    },
+    "drow": {
+        "id": 1394285950464426066,
+        "name": "DROW",
+        "title": "THA BRONX 3 SELLER",
+        "roles": ["Multi-Role Elite", "Tha Bronx 3 Specialist"],
+        "description": "Elite Street Operations",
+        "emoji": "⚡",
+        "custom_fields": {},
+        "achievements": ["⚡ Tha Bronx 3 Expert", "🔫 Street Operations", "💯 Elite Performance", "🎯 Multi-Role Master"],
+        "specialties": ["🏙️ Tha Bronx 3 Operations", "💀 Premium Connections", "⚡ Fast Delivery", "🔥 Street Knowledge"]
+    },
+    "avery": {
+        "id": 666394721039417346,
+        "name": "AVERY",
+        "title": "STK FOUNDER",
+        "roles": ["Founder", "Original Gang Leader"],
+        "description": "The one who started it all",
+        "emoji": "🏛️",
+        "custom_fields": {},
+        "achievements": ["🏛️ Founded STK Gang", "👑 Original Leader", "💀 Street Legend", "🔥 Gang Pioneer"],
+        "specialties": ["💯 Created the Empire", "🌟 Established the Code", "⚔️ Built the Reputation", "🏆 STK Foundation"]
+    }
+}
+
+# STK Board member IDs for permission checking
+STK_BOARD_IDS = [1385239185006268457, 1394285950464426066, 666394721039417346, 954818761729376357]
+
+# STK Board View
+class STKBoardView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    def create_board_embed(self):
+        embed = discord.Embed(
+            title="💀 STK (SHOOT TO KILL) 💀",
+            description="**THE MOST FEARED GANG IN THE STREETS**\n\n🔥 **WELCOME TO STK TERRITORY** 🔥",
+            color=0xFF0000,
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
+        )
+
+        embed.add_field(
+            name="🏙️ WHO WE ARE",
+            value="STK (Shoot to Kill) is the most elite and respected gang operating in Tha Bronx 3. We provide premium undetected services, fast dupes, and maintain our reputation through elite operations and unmatched street credibility.",
+            inline=False
+        )
+
+        embed.add_field(
+            name="👑 OUR LEADERSHIP",
+            value="💎 **ZPOFE** - Chief Architect & Elite Developer\n⚡ **ASAI** - Operations General\n🔥 **DROW** - Multi-Role Elite\n🏛️ **AVERY** - STK Founder\n\n🪖 Professional hierarchy with proven results",
+            inline=True
+        )
+
+        embed.add_field(
+            name="🎯 WHAT WE PROVIDE",
+            value="• Elite quality undetected services\n• Fast dupes with infinite money supply\n• Premium weapons & luxury items\n• 24/7 business operations\n• Most trusted connects in the game\n• Response time: 2-5 minutes\n• 99.9% success rate",
+            inline=True
+        )
+
+        embed.add_field(
+            name="📍 OUR TERRITORY",
+            value="🏙️ **Primary Base:** Tha Bronx 3\n🌍 **Expanding:** New territories coming soon\n💯 **Reputation:** 50+ satisfied customers\n⚡ **Business Hours:** 24/7 grinding",
+            inline=False
+        )
+
+        embed.add_field(
+            name="💰 WHERE TO BUY",
+            value=f"🛒 **SHOP NOW:** <#{1398576146441965629}>\n\n🔥 **All premium services available**\n💎 **Elite quality guaranteed**\n⚡ **Fast delivery & professional service**",
+            inline=True
+        )
+
+        embed.add_field(
+            name="💀 THE STK CODE",
+            value="• Respect the gang hierarchy\n• Elite members only - no weak links\n• Business first, always professional\n• Undetected services guaranteed\n• Fast delivery, no delays",
+            inline=True
+        )
+
+        embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif")
+        embed.set_footer(text="STK Supply • Elite Quality • Undetected Services • Fast Dupes • Infinite Money Supply", icon_url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif")
+        return embed
+
+    @discord.ui.button(label='◀️ BACK TO MAIN', style=discord.ButtonStyle.secondary, emoji='🏠', row=1)
+    async def back_to_main(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = PersistentSTKShopView()
+        embed = view.create_shop_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    @discord.ui.button(label='💎 MEET ZPOFE', style=discord.ButtonStyle.primary, emoji='💎', row=1) 
+    async def zpofe_profile(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.show_member_profile(interaction, "zpofe")
+
+    @discord.ui.button(label='👑 MEET ASAI', style=discord.ButtonStyle.success, emoji='👑', row=1)
+    async def asai_profile(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.show_member_profile(interaction, "asai")
+
+    @discord.ui.button(label='⚡ MEET DROW', style=discord.ButtonStyle.danger, emoji='⚡', row=2)
+    async def drow_profile(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.show_member_profile(interaction, "drow")
+
+    @discord.ui.button(label='🏛️ MEET AVERY', style=discord.ButtonStyle.secondary, emoji='🏛️', row=2)
+    async def avery_profile(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.show_member_profile(interaction, "avery")
+
+    async def show_member_profile(self, interaction: discord.Interaction, member_key: str):
+        member = STK_BOARD_MEMBERS[member_key]
+        
+        embed = discord.Embed(
+            title=f"{member['emoji']} {member['name']} {member['emoji']}",
+            description=f"**{member['title']}**\n\n{member['description']}",
+            color=0xFF0000 if member_key == "zpofe" else 0x00FF00 if member_key == "asai" else 0xFFFF00 if member_key == "drow" else 0x800080,
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
+        )
+
+        # Add roles field
+        roles_text = "\n".join([f"• {role}" for role in member['roles']])
+        embed.add_field(
+            name="🎯 ROLES & SPECIALTIES",
+            value=roles_text,
+            inline=False
+        )
+
+        # Add achievements and specialties from editable data
+        achievements_text = "\n".join([f"• {achievement}" for achievement in member['achievements']])
+        specialties_text = "\n".join([f"• {specialty}" for specialty in member['specialties']])
+        
+        embed.add_field(
+            name="🏆 ACHIEVEMENTS",
+            value=achievements_text,
+            inline=True
+        )
+        
+        embed.add_field(
+            name="🎯 SPECIALTIES",
+            value=specialties_text,
+            inline=True
+        )
+        
+        # Add custom fields if any
+        if member['custom_fields']:
+            for field_name, field_value in member['custom_fields'].items():
+                embed.add_field(
+                    name=field_name,
+                    value=field_value,
+                    inline=False
+                )
+
+        # Add contact info if member has Discord ID
+        if member['id']:
+            discord_member = interaction.guild.get_member(member['id'])
+            if discord_member:
+                embed.set_thumbnail(url=discord_member.display_avatar.url)
+                embed.add_field(
+                    name="📞 CONTACT",
+                    value=f"💬 **Discord:** {discord_member.mention}\n🎯 **Status:** Active\n⚡ **Response:** Fast",
+                    inline=False
+                )
+
+        embed.set_footer(text=f"STK Supply • {member['title']} • Elite Member", icon_url=interaction.guild.me.display_avatar.url)
+        
+        await interaction.response.edit_message(embed=embed, view=self)
+
+# Setup STK Board command
+@bot.tree.command(name="setupboard", description="Setup the STK Board Directory")
+async def setup_stk_board(interaction: discord.Interaction):
+    """Setup the STK Board Directory interface"""
+    try:
+        # Check permissions
+        has_permission = False
+        if interaction.user.guild_permissions.manage_channels:
+            has_permission = True
+        elif BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
+            has_permission = True
+
+        if not has_permission:
+            await interaction.response.send_message("❌ You need admin permissions.", ephemeral=True)
+            return
+
+        await interaction.response.send_message("🔄 Setting up STK Board Directory...", ephemeral=True)
+
+        view = STKBoardView()
+        embed = view.create_board_embed()
+
+        await interaction.channel.send(embed=embed, view=view)
+        await interaction.edit_original_response(content="✅ **STK Board Directory live!**")
+
+    except Exception as e:
+        logger.error(f"Error in setup_stk_board command: {e}")
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
+            else:
+                await interaction.edit_original_response(content="❌ Some shit went wrong.")
+        except discord.NotFound:
+            logger.error("Could not send error message")
+
+# Card Editor Modal
+class CardEditorModal(discord.ui.Modal):
+    def __init__(self, member_key: str):
+        self.member_key = member_key
+        member = STK_BOARD_MEMBERS[member_key]
+        
+        super().__init__(title=f"Edit {member['name']}'s Card", timeout=300)
+
+        # Title field
+        self.title_field = discord.ui.TextInput(
+            label="Title",
+            placeholder="Your title (e.g., #1 SELLER, OWNER, etc.)",
+            default=member.get('title', ''),
+            max_length=50,
+            required=False
+        )
+        self.add_item(self.title_field)
+
+        # Description field
+        self.description_field = discord.ui.TextInput(
+            label="Description",
+            placeholder="Brief description of your role",
+            default=member.get('description', ''),
+            max_length=100,
+            required=False
+        )
+        self.add_item(self.description_field)
+
+        # Achievements field (multiline)
+        achievements_text = "\n".join(member.get('achievements', []))
+        self.achievements_field = discord.ui.TextInput(
+            label="Achievements (one per line)",
+            placeholder="💎 Elite Skills\n🔥 Multi-Territory Domination",
+            default=achievements_text,
+            style=discord.TextStyle.paragraph,
+            max_length=500,
+            required=False
+        )
+        self.add_item(self.achievements_field)
+
+        # Specialties field (multiline)
+        specialties_text = "\n".join(member.get('specialties', []))
+        self.specialties_field = discord.ui.TextInput(
+            label="Specialties (one per line)",
+            placeholder="🏙️ Tha Bronx 3\n💀 Premium Connections",
+            default=specialties_text,
+            style=discord.TextStyle.paragraph,
+            max_length=500,
+            required=False
+        )
+        self.add_item(self.specialties_field)
+
+        # Emoji field
+        self.emoji_field = discord.ui.TextInput(
+            label="Card Emoji",
+            placeholder="💎",
+            default=member.get('emoji', ''),
+            max_length=2,
+            required=False
+        )
+        self.add_item(self.emoji_field)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            # Update the member data
+            member = STK_BOARD_MEMBERS[self.member_key]
+            
+            if self.title_field.value.strip():
+                member['title'] = self.title_field.value.strip()
+            
+            if self.description_field.value.strip():
+                member['description'] = self.description_field.value.strip()
+            
+            if self.achievements_field.value.strip():
+                member['achievements'] = [line.strip() for line in self.achievements_field.value.strip().split('\n') if line.strip()]
+            
+            if self.specialties_field.value.strip():
+                member['specialties'] = [line.strip() for line in self.specialties_field.value.strip().split('\n') if line.strip()]
+            
+            if self.emoji_field.value.strip():
+                member['emoji'] = self.emoji_field.value.strip()
+
+            embed = discord.Embed(
+                title="✅ CARD UPDATED",
+                description=f"**{member['name']}'s card has been updated!**\n\nChanges will appear on the STK Board.",
+                color=0x00FF00
+            )
+            
+            embed.add_field(
+                name="Updated Information",
+                value=f"**Title:** {member['title']}\n**Description:** {member['description']}\n**Emoji:** {member['emoji']}",
+                inline=False
+            )
+
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            logger.info(f"{interaction.user.display_name} updated {member['name']}'s card")
+
+        except Exception as e:
+            logger.error(f"Error updating card: {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ Error updating card.", ephemeral=True)
+
+# Edit card command
+@bot.tree.command(name="editcard", description="Edit your STK board card (STK members only)")
+async def edit_card(interaction: discord.Interaction):
+    """Edit your STK board member card"""
+    try:
+        # Check if user is STK board member
+        if interaction.user.id not in STK_BOARD_IDS:
+            await interaction.response.send_message("❌ Only STK board members can edit cards.", ephemeral=True)
+            return
+
+        # Find which member this user is
+        member_key = None
+        for key, member in STK_BOARD_MEMBERS.items():
+            if member['id'] == interaction.user.id:
+                member_key = key
+                break
+
+        if not member_key:
+            await interaction.response.send_message("❌ Could not find your card in the system.", ephemeral=True)
+            return
+
+        # Show the modal
+        modal = CardEditorModal(member_key)
+        await interaction.response.send_modal(modal)
+
+    except Exception as e:
+        logger.error(f"Error in edit_card command: {e}")
+        if not interaction.response.is_done():
+            await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
+
+# Preview card command
+@bot.tree.command(name="previewcard", description="Preview your STK board card (STK members only)")
+async def preview_card(interaction: discord.Interaction):
+    """Preview your STK board member card"""
+    try:
+        # Check if user is STK board member
+        if interaction.user.id not in STK_BOARD_IDS:
+            await interaction.response.send_message("❌ Only STK board members can preview cards.", ephemeral=True)
+            return
+
+        # Find which member this user is
+        member_key = None
+        for key, member in STK_BOARD_MEMBERS.items():
+            if member['id'] == interaction.user.id:
+                member_key = key
+                break
+
+        if not member_key:
+            await interaction.response.send_message("❌ Could not find your card in the system.", ephemeral=True)
+            return
+
+        member = STK_BOARD_MEMBERS[member_key]
+        
+        embed = discord.Embed(
+            title=f"{member['emoji']} {member['name']} {member['emoji']}",
+            description=f"**{member['title']}**\n\n{member['description']}",
+            color=0xFF0000 if member_key == "zpofe" else 0x00FF00 if member_key == "asai" else 0xFFFF00 if member_key == "drow" else 0x800080,
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
+        )
+
+        # Add roles field
+        roles_text = "\n".join([f"• {role}" for role in member['roles']])
+        embed.add_field(
+            name="🎯 ROLES & SPECIALTIES",
+            value=roles_text,
+            inline=False
+        )
+
+        # Add achievements and specialties
+        achievements_text = "\n".join([f"• {achievement}" for achievement in member['achievements']])
+        specialties_text = "\n".join([f"• {specialty}" for specialty in member['specialties']])
+        
+        embed.add_field(
+            name="🏆 ACHIEVEMENTS",
+            value=achievements_text,
+            inline=True
+        )
+        
+        embed.add_field(
+            name="🎯 SPECIALTIES",
+            value=specialties_text,
+            inline=True
+        )
+        
+        # Add custom fields if any
+        if member['custom_fields']:
+            for field_name, field_value in member['custom_fields'].items():
+                embed.add_field(
+                    name=field_name,
+                    value=field_value,
+                    inline=False
+                )
+
+        # Add contact info
+        discord_member = interaction.guild.get_member(member['id'])
+        if discord_member:
+            embed.set_thumbnail(url=discord_member.display_avatar.url)
+            embed.add_field(
+                name="📞 CONTACT",
+                value=f"💬 **Discord:** {discord_member.mention}\n🎯 **Status:** Active\n⚡ **Response:** Fast",
+                inline=False
+            )
+
+        embed.set_footer(text=f"STK Supply • {member['title']} • Elite Member", icon_url=interaction.guild.me.display_avatar.url)
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    except Exception as e:
+        logger.error(f"Error in preview_card command: {e}")
+        if not interaction.response.is_done():
+            await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
 
 # Setup STK Join command
 @bot.tree.command(name="setupjoinstk", description="Setup the STK Join system")
