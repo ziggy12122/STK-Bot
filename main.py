@@ -332,7 +332,7 @@ class ShopBot(commands.Bot):
         try:
             target_channel_id = 1398741781331447890
             channel = self.get_channel(target_channel_id)
-            
+
             if not channel:
                 logger.error(f"Could not find channel with ID {target_channel_id}")
                 return
@@ -1290,14 +1290,14 @@ class PersistentSTKShopView(discord.ui.View):
         )
 
         embed.add_field(
-            name="💀 THE STK CODE",
-            value="• Respect the gang hierarchy\n• Elite members only - no weak links\n• Business first, always professional\n• Undetected services guaranteed\n• Fast delivery, no delays",
+            name="💰 WHERE TO BUY",
+            value=f"🛒 **SHOP NOW:** <#{1398576146441965629}>\n\n🔥 **All premium services available**\n💎 **Elite quality guaranteed**\n⚡ **Fast delivery & professional service**",
             inline=True
         )
 
         embed.add_field(
-            name="🔥 JOIN THE ELITE",
-            value="We don't just run the streets, we own them. Welcome to STK territory - where elite quality meets undetected services and infinite supply.",
+            name="💀 THE STK CODE",
+            value="• Respect the gang hierarchy\n• Elite members only - no weak links\n• Business first, always professional\n• Undetected services guaranteed\n• Fast delivery, no delays",
             inline=True
         )
 
@@ -1973,6 +1973,30 @@ class TicketManagementView(discord.ui.View):
         await asyncio.sleep(5)
         await interaction.channel.delete()
 
+# Shop Entry View - For setup command
+class ShopEntryView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label='🛒 OPEN SHOP', style=discord.ButtonStyle.success, emoji='🔥', row=1)
+    async def open_shop(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Create a personal shop for the user
+        view = PersonalSTKShopView(interaction.user.id)
+        embed = view.create_personal_shop_embed()
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+    @discord.ui.button(label='🏪 VIEW ALL SHOPS', style=discord.ButtonStyle.primary, emoji='🌍', row=1)
+    async def view_all_shops(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = ShopSelectorView()
+        embed = view.create_selector_embed()
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+    @discord.ui.button(label='ℹ️ ABOUT STK', style=discord.ButtonStyle.secondary, emoji='💀', row=1)
+    async def about_stk(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = STKBoardView()
+        embed = view.create_board_embed()
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
 # Setup shop command
 @bot.tree.command(name="setup", description="Setup the STK Shop")
 async def setup_shop(interaction: discord.Interaction):
@@ -1989,23 +2013,65 @@ async def setup_shop(interaction: discord.Interaction):
             await interaction.response.send_message("❌ You need admin permissions.", ephemeral=True)
             return
 
-        await interaction.response.send_message("🔄 Setting up STK Supply...", ephemeral=True)
+        # Create the main STK shop interface
+        embed = discord.Embed(
+            title="💀 STK (SHOOT TO KILL) 💀",
+            description="**THE MOST FEARED GANG IN THE STREETS**",
+            color=0xFF0000
+        )
 
-        view = PersistentSTKShopView()
-        embed = view.create_shop_embed()
+        embed.add_field(
+            name="🏙️ WHO WE ARE",
+            value="STK (Shoot to Kill) is the most elite and respected gang operating in Tha Bronx 3. We provide premium undetected services, fast dupes, and maintain our reputation through elite operations and unmatched street credibility.",
+            inline=False
+        )
 
+        embed.add_field(
+            name="👑 OUR LEADERSHIP",
+            value="💎 **ZPOFE** - Chief Architect & Elite Developer\n⚡ **ASAI** - Operations General\n🔥 **DROW** - Multi-Role Elite\n🏛️ **AVERY** - STK Founder\n\n🪖 Professional hierarchy with proven results",
+            inline=True
+        )
+
+        embed.add_field(
+            name="🎯 WHAT WE PROVIDE",
+            value="• Elite quality undetected services\n• Fast dupes with infinite money supply\n• Premium weapons & luxury items\n• 24/7 business operations\n• Most trusted connects in the game\n• Response time: 2-5 minutes\n• 99.9% success rate",
+            inline=True
+        )
+
+        embed.add_field(
+            name="📍 OUR TERRITORY",
+            value="🏙️ **Primary Base:** Tha Bronx 3\n🌍 **Expanding:** New territories coming soon\n💯 **Reputation:** 50+ satisfied customers\n⚡ **Business Hours:** 24/7 grinding",
+            inline=False
+        )
+
+        embed.add_field(
+            name="💀 THE STK CODE",
+            value="• Respect the gang hierarchy\n• Elite members only - no weak links\n• Business first, always professional\n• Undetected services guaranteed\n• Fast delivery, no delays",
+            inline=True
+        )
+
+        embed.add_field(
+            name="🔥 JOIN THE ELITE",
+            value="We don't just run the streets, we own them. Welcome to STK territory - where elite quality meets undetected services and infinite supply.",
+            inline=True
+        )
+
+        embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif")
+        embed.set_footer(text="STK Supply • Elite Quality • Undetected Services • Fast Dupes • Infinite Money Supply")
+
+        # Create the shop entry view with buttons
+        view = ShopEntryView()
+
+        # Send the shop interface
         await interaction.channel.send(embed=embed, view=view)
-        await interaction.edit_original_response(content="✅ **STK Supply live!**")
+
+        # Respond to the interaction
+        await interaction.response.send_message("✅ **STK Shop setup complete!**", ephemeral=True)
 
     except Exception as e:
         logger.error(f"Error in setup_shop command: {e}")
-        try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
-            else:
-                await interaction.edit_original_response(content="❌ Some shit went wrong.")
-        except discord.NotFound:
-            logger.error("Could not send error message")
+        if not interaction.response.is_done():
+            await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
 
 
 
@@ -2180,7 +2246,7 @@ class STKBoardView(discord.ui.View):
         embed = view.create_shop_embed()
         await interaction.response.edit_message(embed=embed, view=view)
 
-    @discord.ui.button(label='💎 MEET ZPOFE', style=discord.ButtonStyle.primary, emoji='💎', row=1) 
+    @discord.ui.button(label='💎 MEET ZPOFE', style=discord.ButtonStyle.primary, emoji='💎', row=1)
     async def zpofe_profile(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.show_member_profile(interaction, "zpofe")
 
@@ -2196,9 +2262,44 @@ class STKBoardView(discord.ui.View):
     async def avery_profile(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.show_member_profile(interaction, "avery")
 
+    @discord.ui.button(label='📞 CONTACT TEAM', style=discord.ButtonStyle.primary, emoji='📱', row=3)
+    async def contact_team(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = discord.Embed(
+            title="📞 CONTACT STK TEAM",
+            description="**Get in touch with our elite team**",
+            color=0x00FF00
+        )
+
+        embed.add_field(
+            name="💀 ZPOFE",
+            value="**Main Connect & Developer**\nDM for business inquiries\nResponse: Usually within hours",
+            inline=True
+        )
+
+        embed.add_field(
+            name="⚡ DROW",
+            value="**Premium Specialist**\nDM for premium services\nResponse: Fast turnaround",
+            inline=True
+        )
+
+        embed.add_field(
+            name="👑 ASAI",
+            value="**Operations Leader**\nDM for gang business\nResponse: Leadership matters",
+            inline=True
+        )
+
+        embed.add_field(
+            name="📋 General Guidelines",
+            value="• Business inquiries welcome\n• Be respectful and professional\n• Response time: 2-24 hours\n• We're always grinding!",
+            inline=False
+        )
+
+        embed.set_footer(text="STK Supply • Always ready for business")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
     async def show_member_profile(self, interaction: discord.Interaction, member_key: str):
         member = STK_BOARD_MEMBERS[member_key]
-        
+
         embed = discord.Embed(
             title=f"{member['emoji']} {member['name']} {member['emoji']}",
             description=f"**{member['title']}**\n\n{member['description']}",
@@ -2217,19 +2318,19 @@ class STKBoardView(discord.ui.View):
         # Add achievements and specialties from editable data
         achievements_text = "\n".join([f"• {achievement}" for achievement in member['achievements']])
         specialties_text = "\n".join([f"• {specialty}" for specialty in member['specialties']])
-        
+
         embed.add_field(
             name="🏆 ACHIEVEMENTS",
             value=achievements_text,
             inline=True
         )
-        
+
         embed.add_field(
             name="🎯 SPECIALTIES",
             value=specialties_text,
             inline=True
         )
-        
+
         # Add custom fields if any
         if member['custom_fields']:
             for field_name, field_value in member['custom_fields'].items():
@@ -2251,49 +2352,15 @@ class STKBoardView(discord.ui.View):
                 )
 
         embed.set_footer(text=f"STK Supply • {member['title']} • Elite Member", icon_url=interaction.guild.me.display_avatar.url)
-        
+
         await interaction.response.edit_message(embed=embed, view=self)
-
-# Setup STK Board command
-@bot.tree.command(name="setupboard", description="Setup the STK Board Directory")
-async def setup_stk_board(interaction: discord.Interaction):
-    """Setup the STK Board Directory interface"""
-    try:
-        # Check permissions
-        has_permission = False
-        if interaction.user.guild_permissions.manage_channels:
-            has_permission = True
-        elif BotConfig.ADMIN_ROLE_ID and any(role.id == BotConfig.ADMIN_ROLE_ID for role in interaction.user.roles):
-            has_permission = True
-
-        if not has_permission:
-            await interaction.response.send_message("❌ You need admin permissions.", ephemeral=True)
-            return
-
-        await interaction.response.send_message("🔄 Setting up STK Board Directory...", ephemeral=True)
-
-        view = STKBoardView()
-        embed = view.create_board_embed()
-
-        await interaction.channel.send(embed=embed, view=view)
-        await interaction.edit_original_response(content="✅ **STK Board Directory live!**")
-
-    except Exception as e:
-        logger.error(f"Error in setup_stk_board command: {e}")
-        try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
-            else:
-                await interaction.edit_original_response(content="❌ Some shit went wrong.")
-        except discord.NotFound:
-            logger.error("Could not send error message")
 
 # Card Editor Modal
 class CardEditorModal(discord.ui.Modal):
     def __init__(self, member_key: str):
         self.member_key = member_key
         member = STK_BOARD_MEMBERS[member_key]
-        
+
         super().__init__(title=f"Edit {member['name']}'s Card", timeout=300)
 
         # Title field
@@ -2354,19 +2421,19 @@ class CardEditorModal(discord.ui.Modal):
         try:
             # Update the member data
             member = STK_BOARD_MEMBERS[self.member_key]
-            
+
             if self.title_field.value.strip():
                 member['title'] = self.title_field.value.strip()
-            
+
             if self.description_field.value.strip():
                 member['description'] = self.description_field.value.strip()
-            
+
             if self.achievements_field.value.strip():
                 member['achievements'] = [line.strip() for line in self.achievements_field.value.strip().split('\n') if line.strip()]
-            
+
             if self.specialties_field.value.strip():
                 member['specialties'] = [line.strip() for line in self.specialties_field.value.strip().split('\n') if line.strip()]
-            
+
             if self.emoji_field.value.strip():
                 member['emoji'] = self.emoji_field.value.strip()
 
@@ -2375,7 +2442,7 @@ class CardEditorModal(discord.ui.Modal):
                 description=f"**{member['name']}'s card has been updated!**\n\nChanges will appear on the STK Board.",
                 color=0x00FF00
             )
-            
+
             embed.add_field(
                 name="Updated Information",
                 value=f"**Title:** {member['title']}\n**Description:** {member['description']}\n**Emoji:** {member['emoji']}",
@@ -2442,7 +2509,7 @@ async def preview_card(interaction: discord.Interaction):
             return
 
         member = STK_BOARD_MEMBERS[member_key]
-        
+
         embed = discord.Embed(
             title=f"{member['emoji']} {member['name']} {member['emoji']}",
             description=f"**{member['title']}**\n\n{member['description']}",
@@ -2461,19 +2528,19 @@ async def preview_card(interaction: discord.Interaction):
         # Add achievements and specialties
         achievements_text = "\n".join([f"• {achievement}" for achievement in member['achievements']])
         specialties_text = "\n".join([f"• {specialty}" for specialty in member['specialties']])
-        
+
         embed.add_field(
             name="🏆 ACHIEVEMENTS",
             value=achievements_text,
             inline=True
         )
-        
+
         embed.add_field(
             name="🎯 SPECIALTIES",
             value=specialties_text,
             inline=True
         )
-        
+
         # Add custom fields if any
         if member['custom_fields']:
             for field_name, field_value in member['custom_fields'].items():
@@ -2494,7 +2561,7 @@ async def preview_card(interaction: discord.Interaction):
             )
 
         embed.set_footer(text=f"STK Supply • {member['title']} • Elite Member", icon_url=interaction.guild.me.display_avatar.url)
-        
+
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     except Exception as e:
@@ -2502,10 +2569,10 @@ async def preview_card(interaction: discord.Interaction):
         if not interaction.response.is_done():
             await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
 
-# Setup STK Join command
-@bot.tree.command(name="setupjoinstk", description="Setup the STK Join system")
+# Setup STK Join command (Tryout/Joining System)
+@bot.tree.command(name="setupjoinstk", description="Setup the STK Join/Tryout system for new members")
 async def setup_stk_join(interaction: discord.Interaction):
-    """Setup the STK Join interface"""
+    """Setup the STK Join interface for tryouts and joining the gang"""
     try:
         # Check permissions
         has_permission = False
@@ -2518,26 +2585,19 @@ async def setup_stk_join(interaction: discord.Interaction):
             await interaction.response.send_message("❌ You need admin permissions.", ephemeral=True)
             return
 
-        await interaction.response.send_message("🔄 Setting up STK Join system...", ephemeral=True)
-
         view = STKJoinView()
         embed = view.create_join_embed()
 
+        # Send the join interface
         await interaction.channel.send(embed=embed, view=view)
-        await interaction.edit_original_response(content="✅ **STK Join system live!**")
 
-        # Auto-send STK info message
-        await send_stk_info_if_needed(interaction.channel)
+        # Respond to the interaction
+        await interaction.response.send_message("✅ **STK Join/Tryout system live!**", ephemeral=True)
 
     except Exception as e:
         logger.error(f"Error in setup_stk_join command: {e}")
-        try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
-            else:
-                await interaction.edit_original_response(content="❌ Some shit went wrong.")
-        except discord.NotFound:
-            logger.error("Could not send error message")
+        if not interaction.response.is_done():
+            await interaction.response.send_message("❌ Some shit went wrong.", ephemeral=True)
 
 
 # Error handling
