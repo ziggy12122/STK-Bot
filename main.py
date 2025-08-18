@@ -876,12 +876,7 @@ class OtherShopView(discord.ui.View):
                 inline=True
             )
 
-        # Zpofe Hub section
-        embed.add_field(
-            name="💻 ZPOFE HUB (SOON)",
-            value="🔥 All Scripts in One!\n💎 **Lifetime** - $5\n📅 **3 Month** - $3\n🗓️ **1 Month** - $1",
-            inline=False
-        )
+        
 
         embed.set_footer(text="STK Supply • No BS business")
         return embed
