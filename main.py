@@ -1261,8 +1261,8 @@ class PersistentSTKShopView(discord.ui.View):
         embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif?ex=68a1c8a6&is=68a07726&hm=a73756ad78ccbf90f487df0045bc1ce19d558842ea8527d1444691fd4a29dc74&")
 
         embed.add_field(
-            name="🏙️ WHO WE ARE",
-            value="STK (Shoot to Kill) is the most elite and respected gang operating in Tha Bronx 3. We provide premium undetected services, fast dupes, and maintain our reputation through elite operations and unmatched street credibility.",
+            name="🚨 SHOP NO LONGER AVAILABLE HERE 🚨",
+            value="**STK has moved to a new location!**\n\n🔗 **NEW DISCORD:** https://discord.gg/89j5c2SEK3\n\n⚡ **Join our new server for all STK services!**",
             inline=False
         )
 
@@ -1286,7 +1286,7 @@ class PersistentSTKShopView(discord.ui.View):
 
         embed.add_field(
             name="💰 WHERE TO BUY",
-            value=f"🛒 **SHOP NOW:** <#{1398576146441965629}>\n\n🔥 **All premium services available**\n💎 **Elite quality guaranteed**\n⚡ **Fast delivery & professional service**",
+            value="🛒 **JOIN OUR NEW DISCORD:** https://discord.gg/89j5c2SEK3\n\n🔥 **All premium services available**\n💎 **Elite quality guaranteed**\n⚡ **Fast delivery & professional service**",
             inline=True
         )
 
@@ -2008,16 +2008,20 @@ async def setup_shop(interaction: discord.Interaction):
             await interaction.response.send_message("❌ You need admin permissions.", ephemeral=True)
             return
 
-        # Create the main STK shop interface
+        # Create the shop moved embed
         embed = discord.Embed(
             title="💀 STK (SHOOT TO KILL) 💀",
             description="**THE MOST FEARED GANG IN THE STREETS**",
             color=0xFF0000
         )
 
+        # Add the gif images
+        embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif")
+        embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069645164937368/standard_2.gif")
+
         embed.add_field(
-            name="🏙️ WHO WE ARE",
-            value="STK (Shoot to Kill) is the most elite and respected gang operating in Tha Bronx 3. We provide premium undetected services, fast dupes, and maintain our reputation through elite operations and unmatched street credibility.",
+            name="🚨 SHOP NO LONGER AVAILABLE HERE 🚨",
+            value="**STK has moved to a new location!**\n\n🔗 **NEW DISCORD:** https://discord.gg/89j5c2SEK3\n\n⚡ **Join our new server for all STK services!**",
             inline=False
         )
 
@@ -2034,8 +2038,8 @@ async def setup_shop(interaction: discord.Interaction):
         )
 
         embed.add_field(
-            name="📍 OUR TERRITORY",
-            value="🏙️ **Primary Base:** Tha Bronx 3\n🌍 **Expanding:** New territories coming soon\n💯 **Reputation:** 50+ satisfied customers\n⚡ **Business Hours:** 24/7 grinding",
+            name="💰 WHERE TO BUY - NEW DISCORD SERVER",
+            value="🔗 **https://discord.gg/89j5c2SEK3**\n\n🔥 **All premium services available**\n💎 **Elite quality guaranteed**\n⚡ **Fast delivery & professional service**\n\n**🛒 ALL PURCHASES MUST BE MADE IN THE NEW DISCORD SERVER**",
             inline=False
         )
 
@@ -2047,17 +2051,23 @@ async def setup_shop(interaction: discord.Interaction):
 
         embed.add_field(
             name="🔥 JOIN THE ELITE",
-            value="We don't just run the streets, we own them. Welcome to STK territory - where elite quality meets undetected services and infinite supply.",
+            value="We don't just run the streets, we own them. Join our new Discord server - where elite quality meets undetected services and infinite supply.",
             inline=True
         )
 
-        embed.set_image(url="https://cdn.discordapp.com/attachments/1398907047734673500/1406069644812357753/standard.gif")
         embed.set_footer(text="STK Supply • Elite Quality • Undetected Services • Fast Dupes • Infinite Money Supply")
 
-        # Create the shop entry view with buttons
-        view = ShopEntryView()
+        # Create button to redirect to new Discord
+        view = discord.ui.View(timeout=None)
+        discord_button = discord.ui.Button(
+            label='🔗 JOIN NEW DISCORD',
+            style=discord.ButtonStyle.link,
+            url='https://discord.gg/89j5c2SEK3',
+            emoji='💀'
+        )
+        view.add_item(discord_button)
 
-        # Send the shop interface
+        # Send the shop interface with redirect button
         await interaction.channel.send(embed=embed, view=view)
 
         # Respond to the interaction
@@ -2711,3 +2721,7 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"Critical error: {e}")
         print("❌ Bot failed to start. Check your configuration.")
+
+
+
+
